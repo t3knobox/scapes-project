@@ -20,24 +20,23 @@ export function buildAutoFXChain(category: Category, id: string): Tone.ToneAudio
   const rng = seeded(id);
   const nodes: Tone.ToneAudioNode[] = [];
 
-  // Stereo width on everything except bass (keep low end mono/centered).
-  if (category !== "bass") nodes.push(new Tone.StereoWidener(0.35 + rng() * 0.4));
+  // Stereo width on every generated voice (the synth bed handles its own width).
+  nodes.push(new Tone.StereoWidener(0.35 + rng() * 0.4));
 
-  // Shimmer on melodic/textural voices.
-  if (["lead", "vocal", "texture"].includes(category)) {
+  // Slow shimmer on the atmospheric/looping layers.
+  if (["texture", "environmental"].includes(category)) {
     nodes.push(new Tone.Chorus(0.3 + rng(), 3.5, 0.4).start());
   }
 
-  // Ear-candy delay on leads + percussion.
-  if (["lead", "perc"].includes(category)) {
+  // Rhythmic delay on the one-shot accents (ear-candy + percussion).
+  if (["earcandy", "perc"].includes(category)) {
     const dt = ["8n", "8n.", "4n"][Math.floor(rng() * 3)];
     const d = new Tone.PingPongDelay(dt, 0.22 + rng() * 0.18);
     d.wet.value = 0.28;
     nodes.push(d);
   }
 
-  // Slow autopan → organic drift.
-  nodes.push(new Tone.AutoPanner(0.05 + rng() * 0.14).start());
-
+  // (Removed the per-voice AutoPanner — 8 continuous LFOs were extra DSP for little gain.
+  // The master reverb + per-clip width already give plenty of space.)
   return nodes;
 }

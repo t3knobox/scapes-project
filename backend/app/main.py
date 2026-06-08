@@ -149,9 +149,16 @@ async def job_status(job_id: str):
         return _public_job(job_id, job)   # transient — keep it running, don't fail
 
     if st["state"] == "done":
-        job.update(status="done", progress=100, clips=st["clips"])
-        store.mark_done_hash(job["hash"], job_id)
-        log.info("jobs.done", extra={"jobId": job_id})
+        clips = st.get("clips") or []
+        if not clips:
+            # Worker returned no clips (e.g. a poisoned GPU) — treat as failure, DON'T cache,
+            # so the user sees an error and a retry hits a fresh job (and worker).
+            job.update(status="error", error="GEN_FAILED")
+            log.warning("jobs.empty_result", extra={"jobId": job_id})
+        else:
+            job.update(status="done", progress=100, clips=clips)
+            store.mark_done_hash(job["hash"], job_id)
+            log.info("jobs.done clips=%d", len(clips), extra={"jobId": job_id})
     elif st["state"] == "error":
         job.update(status="error", error="GEN_FAILED")
         log.warning("jobs.failed", extra={"jobId": job_id})

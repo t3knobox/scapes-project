@@ -48,7 +48,16 @@ export class HarmonyEngine {
   private widthLFO = new Tone.LFO({ frequency: 0.02, min: 0.2, max: 0.8 });
   private widener = new Tone.StereoWidener(0.5);
   private chorus = new Tone.Chorus(0.2, 3.5, 0.4);
-  private gain = new Tone.Gain(0.55);
+  private gain = new Tone.Gain(0.85);
+
+  // Subtle in-key "key-jabs" — a glassy bell that sprinkles chord tones over the progression.
+  private jab = new Tone.PolySynth(Tone.FMSynth, {
+    harmonicity: 5,
+    modulationIndex: 6,
+    envelope: { attack: 0.004, decay: 1.4, sustain: 0, release: 1.2 },
+    volume: -13,
+  });
+  private jabDelay = new Tone.PingPongDelay("8n.", 0.28);
 
   private rootMidi: number;
   private mode: Mode;
@@ -68,16 +77,38 @@ export class HarmonyEngine {
     this.synth = new Tone.PolySynth(Tone.Synth, {
       oscillator: { type: "fatsine", count: 2, spread: 18 },
       envelope: { attack: 2.6, decay: 1.5, sustain: 0.85, release: 4.5 }, // long → seamless overlap
-      volume: -11,
+      volume: -4,
     });
     this.chorus.start();
     this.synth.chain(this.chorus, this.filter, this.widener, this.gain, engine.master);
     this.filterLFO.connect(this.filter.frequency);
     this.widthLFO.connect(this.widener.width);
+
+    this.jabDelay.wet.value = 0.25;
+    this.jab.chain(this.jabDelay, engine.master);
+  }
+
+  /** Sprinkle a couple of in-key bell notes (high chord tones) over the current chord. Sparse. */
+  private maybeJab(time: number, offsets: number[]) {
+    if (Math.random() > 0.6) return; // most chords get none → stays subtle
+    const beat = 60 / (Tone.getTransport().bpm.value || 72);
+    const count = 1 + Math.floor(Math.random() * 2); // 1–2 notes
+    for (let i = 0; i < count; i++) {
+      const off = offsets[Math.floor(Math.random() * offsets.length)];
+      const note = Tone.Frequency(this.rootMidi + off + 24, "midi").toNote(); // 2 octaves up = glassy
+      const at = time + beat * Math.floor(Math.random() * this.barsPerChord * 4);
+      try {
+        this.jab.triggerAttackRelease(note, "8n", at, 0.35 + Math.random() * 0.3);
+      } catch {
+        /* never let a scheduling collision break the bed */
+      }
+    }
   }
 
   private notes(offsets: number[]): string[] {
-    return offsets.map((o) => Tone.Frequency(this.rootMidi + o, "midi").toNote());
+    const chord = offsets.map((o) => Tone.Frequency(this.rootMidi + o, "midi").toNote());
+    const sub = Tone.Frequency(this.rootMidi - 12, "midi").toNote(); // sub-bass root (synth = the bass)
+    return [sub, ...chord];
   }
 
   play() {
@@ -100,6 +131,7 @@ export class HarmonyEngine {
 
       this.current = this.notes(offsets);
       this.synth.triggerAttack(this.current, time + 0.02); // …attack new — they overlap → no gap
+      this.maybeJab(time, offsets); // sprinkle in-key bell accents
     }, `${this.barsPerChord}m`);
   }
 
@@ -110,13 +142,14 @@ export class HarmonyEngine {
       this.repeatId = undefined;
     }
     this.synth.releaseAll();
+    this.jab.releaseAll();
     this.filterLFO.stop();
     this.widthLFO.stop();
   }
 
   dispose() {
     this.stop();
-    for (const n of [this.synth, this.filter, this.filterLFO, this.widthLFO, this.widener, this.chorus, this.gain]) {
+    for (const n of [this.synth, this.jab, this.jabDelay, this.filter, this.filterLFO, this.widthLFO, this.widener, this.chorus, this.gain]) {
       try {
         n.dispose();
       } catch {

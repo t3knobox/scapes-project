@@ -15,6 +15,7 @@ type Store = {
   keyName: string;
   prompt: string;
   bgUrl: string | null;
+  volume: number; // 0..1
 
   setClips: (clips: Clip[], keyName: string, bpm: number) => void;
   setPadState: (id: string, s: PadState) => void;
@@ -23,6 +24,7 @@ type Store = {
   setAuto: (b: boolean) => void;
   setPrompt: (p: string) => void;
   setBg: (url: string | null) => void;
+  setVolume: (v: number) => void;
 };
 
 export const useStore = create<Store>((set) => ({
@@ -35,6 +37,7 @@ export const useStore = create<Store>((set) => ({
   keyName: "D major",
   prompt: "",
   bgUrl: null,
+  volume: 0.8,
 
   setClips: (clips, keyName, bpm) => set({ clips, keyName, bpm }),
   setPadState: (id, s) =>
@@ -44,4 +47,5 @@ export const useStore = create<Store>((set) => ({
   setAuto: (autoMode) => set({ autoMode }),
   setPrompt: (prompt) => set({ prompt }),
   setBg: (bgUrl) => set({ bgUrl }),
+  setVolume: (volume) => set({ volume }),
 }));

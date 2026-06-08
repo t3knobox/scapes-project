@@ -8,23 +8,26 @@ from __future__ import annotations
 import random
 
 KEYS = ["C major", "D major", "E major", "A major"]
-GLOBAL_POS = "ethereal, peaceful, dreamy, crisp, airy, high quality, clean, hi-fi"
-GLOBAL_NEG = ("harsh, distorted, aggressive, lo-fi, clipping, spoken words, "
-              "lyrics, singing words, heavy drums, EDM, club")
+GLOBAL_POS = "high quality, clean, hi-fi, crisp, detailed, ethereal"
+GLOBAL_NEG = "low quality, distorted, muddy, lo-fi, harsh clipping"
 
 # category: (count, durationSec, quantize, template)
+# HYBRID: the client-side synth handles ALL tonal/musical content (chords, bass, key-jabs),
+# always in-key and reliable. This generated layer is Stable Audio Open's job — the CHARACTER:
+# ear-candy SFX, percussion one-shots, and environmental sounds. None of it needs to be in key.
 TEMPLATES: dict[str, tuple[int, int, str, str]] = {
-    "ambience": (1, 55, "free", "{s}, evolving ambient drone, lush pad, deep reverb, "
-                 "seamless loop, no percussion, no melody, slow swelling, {k}, 60 bpm"),
-    "texture":  (2, 30, "free", "{s}, granular atmospheric texture, airy shimmer, "
-                 "no rhythm, ethereal, seamless loop, {k}"),
-    "lead":     (2, 12, "soft", "{s}, soft ethereal synth lead, glassy bell, sparse "
-                 "melodic phrase, dreamy, reverb tail, {k}, {b} bpm"),
-    "bass":     (1, 12, "soft", "{s}, deep warm sub bass drone, smooth sine, minimal, {k}, {b} bpm"),
-    "perc":     (2, 6,  "soft", "{s}, delicate glass chimes, wooden clicks, hand bells, sparse, {b} bpm"),
-    "vocal":    (1, 10, "soft", "{s}, wordless ethereal vocal pad, breathy choir aah, "
-                 "distant whisper texture, no lyrics, reverb"),
+    "texture":       (2, 12, "free", "{s}, ambient atmospheric texture, airy evolving drone, soft pad, "
+                      "no melody, no beat, ethereal, seamless"),
+    "environmental": (2, 12, "free", "{s}, realistic field recording of the natural environment, "
+                      "birdsong, flowing water, wind, rustling, ambient nature, no music, seamless"),
+    "earcandy":      (2, 6, "soft", "{s}, delicate ear-candy sound design, glassy sparkles, granular clicks, "
+                      "soft foley, shimmer, crisp high frequencies, no melody"),
+    "perc":          (2, 4, "soft", "{s}, single isolated percussion hit, dry acoustic drum, hand percussion, "
+                      "woodblock, rim, crisp transient, no music, no melody"),
 }
+
+# Categories that loop continuously (atmosphere/nature) vs. one-shot accents.
+LOOP_CATS = ("texture", "environmental")
 
 
 def clean(p: str) -> str:
@@ -42,8 +45,8 @@ def expand_prompt(prompt: str, overrides: dict | None = None, seed: int | None =
             pos = tmpl.format(s=scene, k=key, b=bpm) + ", " + GLOBAL_POS
             subs.append({
                 "category": cat, "index": i, "durationSec": float(dur),
-                "quantize": "free" if cat in ("ambience", "texture") else "soft",
-                "loop": cat in ("ambience", "texture"),
+                "quantize": "free" if cat in LOOP_CATS else "soft",
+                "loop": cat in LOOP_CATS,
                 "positive": pos, "negative": GLOBAL_NEG,
             })
     return {"key": key, "bpm": bpm, "subprompts": subs}

@@ -35,26 +35,31 @@ export class PadVoice {
   }
 
   trigger(cb?: (s: PadState) => void) {
-    // Loop pads toggle off when tapped again.
-    if (this.clip.loop && this.state !== "idle") {
-      this.stop();
-      cb?.("idle");
+    // Loops toggle off; one-shots ignore ANY re-trigger until idle. This prevents calling
+    // player.start() on an already-active player — which throws Tone's "start time must be
+    // strictly greater than previous start time" and can kill the whole audio graph (silence).
+    if (this.state !== "idle") {
+      if (this.clip.loop) {
+        this.stop();
+        cb?.("idle");
+      }
       return;
     }
-    // Ignore re-trigger of a one-shot that's already sounding (prevents click/stack).
-    if (!this.clip.loop && this.state === "playing") return;
 
     const T = Tone.getTransport();
-    this.set("queued", cb);
-
     const at: Tone.Unit.Time =
       this.clip.quantize === "free" ? `+${0.5 + Math.random()}` : T.nextSubdivision("2m");
 
-    this.player.start(at);
-    T.scheduleOnce(() => this.set("playing", cb), at);
-
-    if (!this.clip.loop) {
-      T.scheduleOnce(() => this.set("idle", cb), `+${this.clip.durationSec + 2}`);
+    try {
+      this.set("queued", cb);
+      this.player.start(at);
+      T.scheduleOnce(() => this.set("playing", cb), at);
+      if (!this.clip.loop) {
+        T.scheduleOnce(() => this.set("idle", cb), `+${this.clip.durationSec + 2}`);
+      }
+    } catch {
+      // Never let a scheduling error propagate and break the audio context.
+      this.set("idle", cb);
     }
   }
 

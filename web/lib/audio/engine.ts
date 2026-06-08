@@ -16,13 +16,19 @@ class AudioEngine {
 
   build() {
     if (this.built) return;
-    this.master = new Tone.Channel({ volume: -6 });
+    this.master = new Tone.Channel({ volume: 0 }); // controlled by the volume slider
     this.reverb = new Tone.Reverb({ decay: 6, wet: 0.22 }); // shared space for all voices
     this.limiter = new Tone.Limiter(-1); // catch the sum of many voices
     this.master.chain(this.reverb, this.limiter, Tone.getDestination());
     this.meter = new Tone.Meter({ smoothing: 0.85, normalRange: true });
     this.limiter.connect(this.meter); // dead-end fan-out tap (reads, doesn't pass on)
     this.built = true;
+  }
+
+  /** Master volume from a 0..1 slider (≈ -60dB silent → +6dB loud). */
+  setMasterVolume(v: number) {
+    if (!this.master) return;
+    this.master.volume.value = v <= 0.001 ? -60 : Tone.gainToDb(v) + 6;
   }
 
   /** Normalized 0..1 output level for audio-reactive visuals (0 before audio flows). */
@@ -37,6 +43,9 @@ class AudioEngine {
     this.build();
     if (this.started) return;
     await Tone.start();
+    // More scheduling headroom → fewer audio glitches when the main thread is busy
+    // (animations, React). Ambient timing is loose, so the small added latency is fine.
+    Tone.getContext().lookAhead = 0.2;
     await this.reverb.ready; // impulse response ready before audio flows
     this.bpm = bpm;
     Tone.getTransport().bpm.value = bpm;

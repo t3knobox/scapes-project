@@ -15,7 +15,7 @@ def test_job_completes_with_full_pack(client):
     assert s["clips"] and 8 <= len(s["clips"]) <= 12
     for c in s["clips"]:
         assert c["url"].startswith("https://")
-        assert c["category"] in ("ambience", "texture", "lead", "bass", "perc", "vocal")
+        assert c["category"] in ("texture", "environmental", "earcandy", "perc")
 
 
 def test_job_times_out(client, monkeypatch):

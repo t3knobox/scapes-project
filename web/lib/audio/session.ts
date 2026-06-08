@@ -30,7 +30,7 @@ export const session = {
     store.setLoading(true);
 
     harmony = new HarmonyEngine(keyName);
-    voices = clips.filter((c) => c.category !== "ambience").map((c) => new PadVoice(c));
+    voices = clips.map((c) => new PadVoice(c)); // synth is the bed; every clip is a pad
     await Promise.all(voices.map((v) => v.load()));
 
     auto = new AutoScheduler(voices, (v) => v.trigger(padCb(v)));
@@ -42,8 +42,14 @@ export const session = {
   /** Press-play: start the context (gesture) and the evolving chord bed. */
   async play() {
     await engine.start(useStore.getState().bpm);
+    engine.setMasterVolume(useStore.getState().volume); // apply current slider level
     harmony?.play();
     useStore.getState().setPlaying(true);
+  },
+
+  setVolume(v: number) {
+    useStore.getState().setVolume(v);
+    engine.setMasterVolume(v);
   },
 
   stop() {

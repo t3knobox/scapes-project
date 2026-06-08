@@ -14,20 +14,6 @@ function render(dur: number, build: () => void): Promise<Tone.ToneAudioBuffer> {
   return Tone.Offline(() => build(), dur);
 }
 
-function ambience() {
-  return render(8, () => {
-    const g = new Tone.Gain(0.5).toDestination();
-    const lp = new Tone.Filter(1200, "lowpass").connect(g);
-    ["D3", "A3", "F#4"].forEach((n) => {
-      const s = new Tone.Synth({
-        oscillator: { type: "sine" },
-        envelope: { attack: 1.6, decay: 0.5, sustain: 0.85, release: 2 },
-      }).connect(lp);
-      s.triggerAttackRelease(n, 6.5, 0, 0.5);
-    });
-  });
-}
-
 function texture() {
   return render(6, () => {
     const g = new Tone.Gain(0.32).toDestination();
@@ -40,7 +26,8 @@ function texture() {
   });
 }
 
-function lead(note: string) {
+// Stand-in "ear-candy" sparkle (a glassy FM ping) for the mock pack.
+function earcandy(note: string) {
   return render(1.6, () => {
     const g = new Tone.Gain(0.5).toDestination();
     const fm = new Tone.FMSynth({
@@ -52,16 +39,6 @@ function lead(note: string) {
   });
 }
 
-function bass() {
-  return render(2, () => {
-    const s = new Tone.Synth({
-      oscillator: { type: "sine" },
-      envelope: { attack: 0.2, decay: 0.3, sustain: 0.7, release: 0.8 },
-    }).toDestination();
-    s.triggerAttackRelease("D2", 1.5, 0, 0.7);
-  });
-}
-
 function perc(note: string) {
   return render(0.8, () => {
     const s = new Tone.Synth({
@@ -69,20 +46,6 @@ function perc(note: string) {
       envelope: { attack: 0.001, decay: 0.5, sustain: 0, release: 0.3 },
     }).toDestination();
     s.triggerAttackRelease(note, 0.4, 0, 0.5);
-  });
-}
-
-function vocal() {
-  return render(2.2, () => {
-    const g = new Tone.Gain(0.4).toDestination();
-    [0, 4].forEach((detune) => {
-      const s = new Tone.Synth({
-        oscillator: { type: "sine" },
-        detune,
-        envelope: { attack: 0.6, decay: 0.2, sustain: 0.85, release: 0.9 },
-      }).connect(g);
-      s.triggerAttackRelease("A3", 1.6, 0, 0.55);
-    });
   });
 }
 
@@ -97,15 +60,14 @@ export async function renderMockPack(): Promise<{ clips: Clip[]; key: string; bp
   ): Clip => ({ id, category, src, durationSec, quantize, loop, key: KEY, bpm: BPM });
 
   const clips: Clip[] = [
-    make("ambience_0", "ambience", await ambience(), 8, "free", true),
     make("texture_0", "texture", await texture(), 6, "free", true),
     make("texture_1", "texture", await texture(), 6, "free", true),
-    make("lead_0", "lead", await lead("F#4"), 1.6, "soft", false),
-    make("lead_1", "lead", await lead("A4"), 1.6, "soft", false),
-    make("bass_0", "bass", await bass(), 2, "soft", false),
+    make("environmental_0", "environmental", await texture(), 6, "free", true),
+    make("environmental_1", "environmental", await texture(), 6, "free", true),
+    make("earcandy_0", "earcandy", await earcandy("F#5"), 1.6, "soft", false),
+    make("earcandy_1", "earcandy", await earcandy("A5"), 1.6, "soft", false),
     make("perc_0", "perc", await perc("A5"), 0.8, "soft", false),
     make("perc_1", "perc", await perc("E5"), 0.8, "soft", false),
-    make("vocal_0", "vocal", await vocal(), 2.2, "soft", false),
   ];
   return { clips, key: KEY, bpm: BPM };
 }

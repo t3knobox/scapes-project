@@ -1,44 +1,53 @@
 """
-Stable Audio Open engine — the ambient/textural fallback. Strongest for drones/textures.
+Stable Audio Open engine (via diffusers StableAudioPipeline).
 
-To ENABLE (it's a skeleton until you do):
-  1. Add to the Docker image: `pip install stable-audio-tools soundfile` and bake the weights.
-  2. Stable Audio Open is GATED on HuggingFace — accept the license and set HF_TOKEN in the
-     endpoint env so the weights can download.
-  3. Set ENGINE=stable_audio on the RunPod endpoint.
-Returns (mono float32, sr) like the MusicGen engine, so handler.py is unchanged.
+Generates the CHARACTER layer of the hybrid: ear-candy SFX, percussion one-shots, and
+environmental sounds (birds/water/wind). The client-side synth handles all the tonal/musical
+content (chords, bass, key-jabs), so this engine never needs to be "in key."
+
+Gated model → needs HF_TOKEN (env). On RunPod serverless it downloads at cold-start unless a
+network volume caches it (set HF_HOME to the volume). Returns (mono float32, sr) like the others.
 """
 import os
 
 import numpy as np
+import torch
 
-_model = None
-_cfg = None
+_pipe = None
 
 
 def load():
-    global _model, _cfg
-    if _model is not None:
+    global _pipe
+    if _pipe is not None:
         return
-    # from stable_audio_tools import get_pretrained_model
-    # import torch
-    # _model, _cfg = get_pretrained_model("stabilityai/stable-audio-open-1.0")  # needs HF_TOKEN
-    # _model = _model.to("cuda")
-    raise NotImplementedError(
-        "stable_audio engine not enabled — see this file's docstring "
-        "(add deps to the Dockerfile + set HF_TOKEN), or use ENGINE=musicgen."
-    )
+    from diffusers import StableAudioPipeline
+
+    token = os.environ.get("HF_TOKEN") or os.environ.get("HUGGING_FACE_HUB_TOKEN")
+    _pipe = StableAudioPipeline.from_pretrained(
+        "stabilityai/stable-audio-open-1.0",
+        torch_dtype=torch.float16,
+        token=token,
+    ).to("cuda")
 
 
 def render_one(sp, key, bpm):
-    # from stable_audio_tools.inference.generation import generate_diffusion_cond
-    # sr = _cfg["sample_rate"]; dur = float(sp.get("durationSec", 8))
-    # audio = generate_diffusion_cond(
-    #     _model, steps=100, cfg_scale=7,
-    #     conditioning=[{"prompt": sp["positive"], "seconds_start": 0, "seconds_total": dur}],
-    #     negative_conditioning=[{"prompt": sp.get("negative", "")}],
-    #     sample_size=int(sr * dur), device="cuda",
-    # )
-    # mono = audio.squeeze(0).mean(0).to("cpu").numpy().astype("float32")
-    # return mono / (np.max(np.abs(mono)) or 1.0) * 0.95, sr
-    raise NotImplementedError
+    dur = max(2.0, min(float(sp.get("durationSec", 8)), 30.0))
+    # deterministic-ish seed per clip so a pack is stable across regenerations
+    seed = abs(hash((sp.get("category", ""), sp.get("index", 0)))) % (2**31)
+    gen = torch.Generator("cuda").manual_seed(seed)
+
+    audios = _pipe(
+        prompt=sp["positive"],
+        negative_prompt=sp.get("negative") or "low quality, distorted, muddy",
+        num_inference_steps=100,
+        audio_end_in_s=dur,
+        num_waveforms_per_prompt=1,
+        generator=gen,
+    ).audios
+
+    arr = audios[0].to(torch.float32).cpu().numpy()  # [channels, samples]
+    if arr.ndim == 2:
+        arr = arr.mean(axis=0)  # handler encodes mono; the client widener re-spatializes
+    sr = int(_pipe.vae.sampling_rate)  # 44100
+    peak = float(np.max(np.abs(arr))) or 1.0
+    return arr / peak * 0.95, sr

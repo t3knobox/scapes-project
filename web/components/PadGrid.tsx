@@ -9,7 +9,7 @@ import { Pad } from "./Pad";
 export function PadGrid() {
   const clips = useStore((s) => s.clips);
   const padState = useStore((s) => s.padState);
-  const pads = clips.filter((c) => c.category !== "ambience");
+  const pads = clips; // every generated clip is a playable pad (synth handles the bed)
 
   // Animate orbs in (and start breathing) whenever a new pack loads. Depend on `clips`
   // identity (setClips makes a fresh array each load) so a regenerate re-runs it.

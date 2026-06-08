@@ -7,11 +7,9 @@ WORKDIR /app
 COPY worker/requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Bake MusicGen weights into the image so cold starts don't pay the download.
-RUN python -c "from transformers import AutoProcessor, MusicgenForConditionalGeneration; \
-    m='facebook/musicgen-medium'; AutoProcessor.from_pretrained(m); \
-    MusicgenForConditionalGeneration.from_pretrained(m)"
-
+# No weight bake: Stable Audio Open is gated (no build-time token available), so it
+# downloads at runtime. Cache it on a RunPod network volume (set HF_HOME to the volume)
+# to keep cold starts fast.
 COPY worker/ /app
 
 CMD ["python", "-u", "handler.py"]

@@ -13,19 +13,25 @@ export async function generateSoundscape(
   prompt: string,
   onProgress?: (p: GenProgress) => void,
 ): Promise<{ clips: Clip[]; key: string; bpm: number }> {
-  const res = await fetch(`${API}/generate`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ prompt }),
-  });
+  let res: Response;
+  try {
+    res = await fetch(`${API}/generate`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ prompt }),
+    });
+  } catch {
+    throw new Error("NETWORK"); // backend unreachable
+  }
   if (!res.ok) {
     const body = await res.json().catch(() => ({}));
     throw new Error(body?.detail?.code ?? "GEN_FAILED");
   }
   const { jobId, key, bpm } = await res.json();
 
-  // Poll up to ~4 min (2s interval). The backend marks GEN_TIMEOUT on its own clock too.
-  for (let i = 0; i < 120; i++) {
+  // Poll up to ~15 min (2s interval) to cover RunPod cold start. The backend has its
+  // own GEN_TIMEOUT clock (MAX_JOB_SEC) too.
+  for (let i = 0; i < 450; i++) {
     await new Promise((r) => setTimeout(r, 2000));
     const j = await fetch(`${API}/jobs/${jobId}`).then((r) => r.json());
     onProgress?.({ status: j.status, progress: j.progress ?? 0 });

@@ -1,5 +1,6 @@
 // Shared audio types. No Tone runtime import here (type-only) so this is SSR-safe.
-export type Category = "ambience" | "texture" | "lead" | "bass" | "perc" | "vocal";
+// Generated "character" layer only — the synth bed (chords/bass/key-jabs) is separate.
+export type Category = "texture" | "environmental" | "earcandy" | "perc";
 export type PadState = "idle" | "queued" | "playing";
 
 export type Clip = {
@@ -15,10 +16,8 @@ export type Clip = {
 };
 
 export const CATEGORY_COLOR: Record<Category, string> = {
-  ambience: "#7c83ff",
-  texture: "#3fd1c7",
-  lead: "#5ad1ff",
-  bass: "#3b5bdb",
-  perc: "#ffcf6b",
-  vocal: "#c08bff",
+  texture: "#3fd1c7", // teal — atmospheric pads
+  environmental: "#6fd17a", // green — nature/field recordings
+  earcandy: "#ffcf6b", // gold — sparkles & sound design
+  perc: "#c08bff", // lavender — percussion hits
 };

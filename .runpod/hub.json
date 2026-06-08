@@ -1,6 +1,6 @@
 {
   "title": "Scapes Audio Worker",
-  "description": "Generative ambient ear-candy audio clips (MusicGen) for The Scapes Project.",
+  "description": "Stable Audio Open — ear-candy SFX, percussion, and environmental sounds for The Scapes Project.",
   "type": "serverless",
   "category": "audio",
   "config": {
@@ -8,8 +8,16 @@
     "containerDiskInGb": 30,
     "gpuCount": 1,
     "env": [
-      { "key": "ENGINE", "value": "musicgen" },
-      { "key": "MUSICGEN_MODEL", "value": "facebook/musicgen-medium" }
+      { "key": "ENGINE", "value": "stable_audio" },
+      {
+        "key": "HF_TOKEN",
+        "input": {
+          "name": "HuggingFace Token",
+          "type": "string",
+          "description": "HF token with access to stabilityai/stable-audio-open-1.0 (accept the license first).",
+          "default": ""
+        }
+      }
     ]
   }
 }

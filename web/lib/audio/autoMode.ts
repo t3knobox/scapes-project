@@ -18,11 +18,15 @@ export class AutoScheduler {
     if (this.id !== undefined) return;
     this.id = Tone.getTransport().scheduleRepeat(() => {
       if (Math.random() < 0.55) {
-        const pool = this.voices.filter(
-          (v) => v.state === "idle" && v.clip.category !== "ambience",
-        );
+        const pool = this.voices.filter((v) => v.state === "idle");
         const v = pool[Math.floor(Math.random() * pool.length)];
-        if (v) this.triggerVoice(v);
+        if (v) {
+          try {
+            this.triggerVoice(v);
+          } catch {
+            /* keep the scheduler alive even if one trigger fails */
+          }
+        }
       }
     }, "2m");
   }

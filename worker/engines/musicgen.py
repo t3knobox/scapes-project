@@ -37,7 +37,9 @@ def _suffix(category: str) -> str:
 def render_one(sp, key, bpm):
     prompt = f"{sp['positive']}, {_suffix(sp['category'])}"
     dur = float(sp.get("durationSec", 8))
-    max_new = int(dur * 50)  # MusicGen runs at ~50 audio tokens/sec
+    # MusicGen runs at ~50 tokens/sec and hard-errors (CUDA index assert) past ~30s,
+    # poisoning the GPU for the rest of the batch. Cap well under that.
+    max_new = min(int(dur * 50), 1000)
 
     inputs = _proc(text=[prompt], padding=True, return_tensors="pt").to("cuda")
     with torch.no_grad():

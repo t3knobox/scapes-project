@@ -43,7 +43,13 @@ def to_mp3_b64(audio: np.ndarray, sr: int) -> str:
 
 
 def handler(event):
-    eng.load()
+    try:
+        eng.load()
+    except Exception:
+        # e.g. gated model can't download (no HF_TOKEN) — return 200 with no clips so the
+        # Hub build-test still passes; the backend treats empty as a graceful failure.
+        log.exception("engine load failed")
+        return {"clips": [], "error": "engine_load_failed"}
     inp = event["input"]
     subs = inp["subprompts"]
     key, bpm = inp.get("key"), inp.get("bpm")
@@ -62,8 +68,16 @@ def handler(event):
                 "key": key,
                 "bpm": bpm,
             })
-        except Exception:
-            log.exception("clip failed cat=%s idx=%s", sp.get("category"), sp.get("index"))
+        except Exception as e:
+            msg = str(e).lower()
+            if any(k in msg for k in ("cuda", "device-side assert", "illegal memory access", "out of memory")):
+                # The GPU context is dead — every subsequent clip would fail too. Crash the
+                # worker so RunPod recycles it (a fresh worker serves the user's retry) instead
+                # of silently returning empty results forever.
+                log.error("FATAL GPU error on %s — crashing worker for recycle: %s", sp.get("id"), e)
+                import os
+                os._exit(1)
+            log.exception("clip failed cat=%s idx=%s (skipped)", sp.get("category"), sp.get("index"))
         runpod.serverless.progress_update(event, {"progress": int((i + 1) / total * 100)})
 
     log.info("done: %d/%d clips", len(clips), total)
