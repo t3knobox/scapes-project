@@ -1,7 +1,12 @@
 runpod>=1.6
-transformers>=4.44
-accelerate>=0.33
+# Pin to 4.x: transformers 5.x needs torch >=2.6 (float8 dtypes); the base image
+# ships torch 2.4.1, so 5.x fails to import. 4.44.2 fully supports MusicGen.
+transformers==4.44.2
+tokenizers<0.20
+huggingface_hub<0.26
+accelerate>=0.33,<1.0
 sentencepiece>=0.2
 lameenc>=1.7
-numpy>=1.26
+numpy>=1.26,<2
 # torch is provided by the RunPod base image
+

@@ -87,6 +87,11 @@ body {
 .prompt-input:focus {
   border-color: #6fe0d6;
 }
+.prompt-error {
+  font-size: 0.8rem;
+  color: #e88a9a;
+  letter-spacing: 0.02em;
+}
 
 /* ---- transport buttons ---- */
 .transport-btn {
