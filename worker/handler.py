@@ -45,11 +45,12 @@ def to_mp3_b64(audio: np.ndarray, sr: int) -> str:
 def handler(event):
     try:
         eng.load()
-    except Exception:
+    except Exception as e:
         # e.g. gated model can't download (no HF_TOKEN) — return 200 with no clips so the
         # Hub build-test still passes; the backend treats empty as a graceful failure.
+        # Surface the real exception so it's visible via the job status (not just the logs).
         log.exception("engine load failed")
-        return {"clips": [], "error": "engine_load_failed"}
+        return {"clips": [], "error": f"engine_load_failed: {type(e).__name__}: {e}"[:400]}
     inp = event["input"]
     subs = inp["subprompts"]
     key, bpm = inp.get("key"), inp.get("bpm")

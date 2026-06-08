@@ -1,6 +1,9 @@
 runpod>=1.6
 # Stable Audio Open runs via diffusers' StableAudioPipeline.
 diffusers>=0.30
+# SAO's default scheduler (CosineDPMSolverMultistep) requires torchsde — without it the
+# pipeline raises ImportError on load. (torchsde pulls scipy/trampoline.)
+torchsde>=0.2.6
 # Pinned to 4.x: transformers 5.x needs torch >=2.6; base image has torch 2.4.1.
 # (transformers provides the T5 text encoder for SAO, and MusicGen as a fallback engine.)
 transformers==4.44.2
