@@ -17,7 +17,8 @@ needed for MVP**. (Swap to R2 + real URLs when clips get long or traffic grows.)
 ## Deploy on RunPod (GitHub route — no local Docker needed)
 1. **Push this repo to GitHub** (the whole project is fine; the worker lives in `worker/`).
 2. RunPod → **Serverless → New Endpoint → Import from GitHub** → pick the repo + branch.
-3. Set **Dockerfile path** = `worker/Dockerfile` and **build context** = `worker/`.
+3. Set **Dockerfile Path** = `worker/Dockerfile`. (RunPod builds from the repo root; the
+   Dockerfile's `COPY worker/...` paths are written for that — don't change them.)
 4. **GPU**: a 24GB card (RTX 4090 / A5000 / L4). **Min workers 0** (scale-to-zero),
    **Max 1–2**, **Idle timeout 5–10s**, **FlashBoot ON**.
 5. **Env vars** (optional): `ENGINE=musicgen` (default), `MUSICGEN_MODEL=facebook/musicgen-medium`
@@ -33,8 +34,8 @@ needed for MVP**. (Swap to R2 + real URLs when clips get long or traffic grows.)
 
 ## Local Docker route (alternative)
 ```bash
-cd worker
-docker build -t scapes-worker .
+# build from the REPO ROOT (context = root), pointing at the worker Dockerfile
+docker build -f worker/Dockerfile -t scapes-worker .
 docker push <your-registry>/scapes-worker   # then point the RunPod endpoint at the image
 ```
 
