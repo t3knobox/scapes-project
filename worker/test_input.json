@@ -1,0 +1,14 @@
+{
+  "input": {
+    "key": "D major",
+    "bpm": 72,
+    "subprompts": [
+      { "category": "texture", "index": 0, "durationSec": 8, "quantize": "free", "loop": true,
+        "positive": "granular atmospheric shimmer, airy mist, no rhythm, ethereal, D major" },
+      { "category": "lead", "index": 0, "durationSec": 6, "quantize": "soft", "loop": false,
+        "positive": "soft ethereal glassy bell lead, sparse melodic phrase, dreamy, D major, 72 bpm" },
+      { "category": "perc", "index": 0, "durationSec": 4, "quantize": "soft", "loop": false,
+        "positive": "delicate glass chimes, hand bells, sparse, 72 bpm" }
+    ]
+  }
+}

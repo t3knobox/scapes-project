@@ -8,7 +8,7 @@ from __future__ import annotations
 import random
 
 KEYS = ["C major", "D major", "E major", "A major"]
-GLOBAL_POS = "ethereal, peaceful, dreamy, high quality, clean, stereo"
+GLOBAL_POS = "ethereal, peaceful, dreamy, crisp, airy, high quality, clean, hi-fi"
 GLOBAL_NEG = ("harsh, distorted, aggressive, lo-fi, clipping, spoken words, "
               "lyrics, singing words, heavy drums, EDM, club")
 

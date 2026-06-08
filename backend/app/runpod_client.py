@@ -28,6 +28,31 @@ _RP_BASE = f"https://api.runpod.ai/v2/{_RP_ENDPOINT}"
 
 _stub_jobs: dict[str, dict] = {}   # runpod_id -> {ready_at, clips}
 
+# Z-Image-Turbo public endpoint (synchronous). Fixed slug — no custom endpoint needed,
+# just RUNPOD_API_KEY. ~$0.005/image. Returns a temporary URL (expires ~7 days).
+Z_IMAGE_URL = "https://api.runpod.ai/v2/z-image-turbo/runsync"
+
+
+async def generate_image(prompt: str, size: str = "1280*720") -> str | None:
+    """Returns a generated image URL, or None if no key / failure (caller falls back to mesh)."""
+    if not _RP_KEY:
+        log.info("image.no_key")
+        return None
+    async with httpx.AsyncClient(timeout=90) as c:
+        r = await c.post(
+            Z_IMAGE_URL,
+            headers={"Authorization": f"Bearer {_RP_KEY}"},
+            json={"input": {"prompt": prompt, "size": size, "output_format": "jpeg",
+                            "seed": -1, "enable_safety_checker": True}},
+        )
+    r.raise_for_status()
+    data = r.json()
+    out = data.get("output") or {}
+    log.info("image.done status=%s cost=%s", data.get("status"), out.get("cost"))
+    if data.get("status") != "COMPLETED":
+        return None
+    return out.get("result") or out.get("image_url")  # endpoint returns `result`
+
 
 def _stub_enabled() -> bool:
     return os.environ.get("STUB_WORKER", "1") == "1" or not _RP_KEY

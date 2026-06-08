@@ -58,6 +58,8 @@ Rules:
 NEVER full sentences, NEVER lyrics, NEVER words-to-be-sung.
 - Route elements of the scene to the RIGHT category. Chimes/bells -> perc. \
 Whispers/breaths/choir -> vocal (wordless only). Drones/pads -> ambience/texture.
+- Aesthetic: bright, crisp, airy ear candy with glassy shimmer and delicate high-frequency \
+detail for leads/perc/texture/vocal; warm and deep for bass. Hi-fi, clean.
 - Produce exactly these categories and counts: ambience x1, texture x2, lead x2, \
 bass x1, perc x2, vocal x1.
 - ambience and texture must be melody-free and percussion-free, and loopable \

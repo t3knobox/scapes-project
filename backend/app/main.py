@@ -17,6 +17,7 @@ from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
+from . import config  # noqa: F401  -- MUST be first: loads .env before anything reads it
 from . import clock, runpod_client, store
 from .expander_llm import expand_prompt_llm
 from .logging_setup import setup as setup_logging
@@ -74,6 +75,14 @@ class SavePack(BaseModel):
     key: str
     bpm: int
     clips: list[dict]
+
+
+class BgReq(BaseModel):
+    prompt: str
+
+
+IMG_STYLE = ("ethereal dreamy atmospheric digital painting, soft volumetric light, "
+             "cinematic, high detail, no text")
 
 
 # ---- health ----------------------------------------------------------------
@@ -171,3 +180,17 @@ async def shared(slug: str):
     if not pack:
         _err(404, "NOT_FOUND")
     return pack
+
+
+# ---- prompt-painted background (Z-Image-Turbo) ----
+@app.post("/background")
+async def background(req: BgReq):
+    if not req.prompt.strip():
+        _err(400, "PROMPT_EMPTY")
+    styled = f"{req.prompt.strip()[:300]}, {IMG_STYLE}"
+    try:
+        url = await runpod_client.generate_image(styled)
+    except Exception:
+        log.exception("background.failed")
+        return {"url": None}  # frontend keeps the procedural mesh
+    return {"url": url}

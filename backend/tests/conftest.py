@@ -6,7 +6,10 @@ import os
 os.environ.setdefault("STUB_WORKER", "1")
 os.environ.setdefault("STUB_DELAY_SEC", "0")     # stub job completes on first poll
 os.environ.setdefault("RATE_MAX", "1000")        # don't trip the limiter in unrelated tests
-os.environ.pop("ANTHROPIC_API_KEY", None)        # force the deterministic rules-engine fallback
+# Set to "" (not pop): load_dotenv() in app.config won't override existing keys, so this
+# blocks the real .env keys from leaking into tests and keeps them offline/deterministic.
+os.environ["ANTHROPIC_API_KEY"] = ""             # force the rules-engine fallback
+os.environ["RUNPOD_API_KEY"] = ""                # block real RunPod calls in tests
 
 import pytest
 from fastapi.testclient import TestClient

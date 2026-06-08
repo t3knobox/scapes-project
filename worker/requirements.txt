@@ -1,0 +1,7 @@
+runpod>=1.6
+transformers>=4.44
+accelerate>=0.33
+sentencepiece>=0.2
+lameenc>=1.7
+numpy>=1.26
+# torch is provided by the RunPod base image
