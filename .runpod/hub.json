@@ -1,0 +1,15 @@
+{
+  "title": "Scapes Audio Worker",
+  "description": "Generative ambient ear-candy audio clips (MusicGen) for The Scapes Project.",
+  "type": "serverless",
+  "category": "audio",
+  "config": {
+    "runsOn": "GPU",
+    "containerDiskInGb": 30,
+    "gpuCount": 1,
+    "env": [
+      { "key": "ENGINE", "value": "musicgen" },
+      { "key": "MUSICGEN_MODEL", "value": "facebook/musicgen-medium" }
+    ]
+  }
+}
