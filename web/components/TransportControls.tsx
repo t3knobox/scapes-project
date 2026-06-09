@@ -58,12 +58,6 @@ export function TransportControls() {
     <div className="transportbar flex flex-col items-center gap-4">
       <div className="flex items-center gap-4">
         <button
-          className="transport-btn"
-          onClick={() => (isPlaying ? session.stop() : session.play())}
-        >
-          {isPlaying ? "■ Stop" : "▶ Play"}
-        </button>
-        <button
           className={`transport-btn ${auto ? "transport-on" : ""}`}
           onClick={() => session.setAuto(!auto)}
           disabled={!isPlaying}

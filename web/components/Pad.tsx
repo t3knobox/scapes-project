@@ -3,6 +3,9 @@ import { useEffect, useRef } from "react";
 import { CATEGORY_COLOR, type Clip, type PadState } from "@/lib/audio/types";
 import { rippleOrb } from "@/lib/motion";
 
+// Short display labels so they fit the orb on small screens.
+const LABELS: Record<string, string> = { environmental: "enviro" };
+
 export function Pad({
   clip,
   state,
@@ -34,7 +37,7 @@ export function Pad({
         className={`orb orb-${state}`}
         aria-label={`${clip.category} pad (${state})`}
       >
-        <span className="orb-label">{clip.category}</span>
+        <span className="orb-label">{LABELS[clip.category] ?? clip.category}</span>
         {hotkey && <span className="orb-key">{hotkey}</span>}
       </button>
     </div>

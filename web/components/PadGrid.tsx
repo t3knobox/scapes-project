@@ -9,6 +9,7 @@ import { Pad } from "./Pad";
 export function PadGrid() {
   const clips = useStore((s) => s.clips);
   const padState = useStore((s) => s.padState);
+  const isPlaying = useStore((s) => s.isPlaying);
   const pads = clips; // every generated clip is a playable pad (synth handles the bed)
 
   // Animate orbs in (and start breathing) whenever a new pack loads. Depend on `clips`
@@ -36,7 +37,13 @@ export function PadGrid() {
 
   return (
     <div className="pad-ring">
-      <div className="pad-ring-core" aria-hidden />
+      <button
+        className={`pad-ring-core ${isPlaying ? "is-playing" : ""}`}
+        onClick={() => (isPlaying ? session.stop() : session.play())}
+        aria-label={isPlaying ? "Stop" : "Play"}
+      >
+        <span className="pad-ring-icon">{isPlaying ? "■" : "▶"}</span>
+      </button>
       {pads.map((c, i) => {
         // Evenly distribute on a circle, starting at the top, going clockwise.
         const a = (i / n) * 2 * Math.PI - Math.PI / 2;

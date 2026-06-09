@@ -372,10 +372,10 @@ body {
 /* ---- pad ring (orbs arranged on a circle) ---- */
 .pad-ring {
   position: relative;
-  width: min(90vw, 560px);
-  height: min(90vw, 560px);
+  width: min(92vw, 560px);
+  height: min(92vw, 560px);
   margin: 1.5rem auto 0;
-  --ring-r: min(41vw, 230px); /* orbit radius */
+  --ring-r: min(37vw, 218px); /* orbit radius — pulled in so pads never clip the screen edge */
 }
 .orb-slot {
   position: absolute;
@@ -385,28 +385,49 @@ body {
   transform: translate(-50%, -50%)
     translate(calc(var(--x) * var(--ring-r)), calc(var(--y) * var(--ring-r)));
 }
-/* soft breathing heart in the middle of the ring */
+/* the Play/Stop heart in the middle of the ring */
 .pad-ring-core {
   position: absolute;
   left: 50%;
   top: 50%;
-  width: 44%;
-  height: 44%;
   transform: translate(-50%, -50%);
+  width: clamp(4.5rem, 13vmin, 6rem);
+  height: clamp(4.5rem, 13vmin, 6rem);
   border-radius: 9999px;
-  background: radial-gradient(circle, rgba(180, 200, 255, 0.07), transparent 70%);
-  pointer-events: none;
-  animation: corepulse 7s ease-in-out infinite;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  color: #eaf0ff;
+  border: 1px solid rgba(180, 200, 255, 0.28);
+  background: radial-gradient(circle, rgba(180, 200, 255, 0.16), rgba(10, 10, 20, 0.5) 72%);
+  box-shadow: 0 0 28px rgba(150, 180, 255, 0.22);
+  backdrop-filter: blur(3px);
+  animation: corebreathe 7s ease-in-out infinite;
+  transition:
+    box-shadow 0.3s,
+    scale 0.2s;
 }
-@keyframes corepulse {
+.pad-ring-core:hover {
+  scale: 1.06;
+}
+.pad-ring-core.is-playing {
+  border-color: rgba(180, 200, 255, 0.5);
+  box-shadow:
+    0 0 48px rgba(150, 180, 255, 0.5),
+    inset 0 0 22px rgba(150, 180, 255, 0.18);
+  animation: none;
+}
+.pad-ring-icon {
+  font-size: clamp(1.1rem, 3vmin, 1.5rem);
+  line-height: 1;
+}
+@keyframes corebreathe {
   0%,
   100% {
-    opacity: 0.45;
-    transform: translate(-50%, -50%) scale(0.92);
+    box-shadow: 0 0 22px rgba(150, 180, 255, 0.18);
   }
   50% {
-    opacity: 0.85;
-    transform: translate(-50%, -50%) scale(1.06);
+    box-shadow: 0 0 40px rgba(150, 180, 255, 0.4);
   }
 }
 
@@ -414,8 +435,8 @@ body {
    .orb-wrap carries anime.js float/entrance; inner .orb keeps CSS state transforms. */
 .orb-wrap {
   position: relative;
-  width: clamp(4.75rem, 15vmin, 6.25rem);
-  height: clamp(4.75rem, 15vmin, 6.25rem);
+  width: clamp(4rem, 14vmin, 6.25rem);
+  height: clamp(4rem, 14vmin, 6.25rem);
   display: grid;
   place-items: center;
   opacity: 0;

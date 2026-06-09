@@ -1,20 +1,49 @@
-"use client";
-import dynamic from "next/dynamic";
-import { useParams } from "next/navigation";
+import type { Metadata } from "next";
+import { ShareClient } from "./ShareClient";
 
-// ssr:false keeps Tone.js / AudioContext off the server (mirrors app/page.tsx).
-const ShareStudio = dynamic(
-  () => import("@/components/ShareStudio").then((m) => m.ShareStudio),
-  {
-    ssr: false,
-    loading: () => (
-      <div className="min-h-screen grid place-items-center text-[#8a8aa0]">Loading scape…</div>
-    ),
-  },
-);
+const API = process.env.NEXT_PUBLIC_API_BASE ?? "http://localhost:8000";
 
-export default function SharePage() {
-  const params = useParams();
-  const slug = Array.isArray(params.slug) ? params.slug[0] : (params.slug ?? "");
-  return <ShareStudio slug={slug} />;
+async function getScape(slug: string) {
+  try {
+    const res = await fetch(`${API}/s/${slug}`, { cache: "no-store" });
+    if (!res.ok) return null;
+    return await res.json();
+  } catch {
+    return null;
+  }
+}
+
+// Server-rendered <head> so share links unfurl with the scape's prompt + background image.
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ slug: string }>;
+}): Promise<Metadata> {
+  const { slug } = await params;
+  const s = await getScape(slug);
+  if (!s) return { title: "Scape not found · The Scapes Project" };
+
+  const quote = s.prompt ? `“${s.prompt}”` : "An ambient soundscape";
+  const images = s.bgUrl ? [s.bgUrl] : [];
+  return {
+    title: `${quote} · The Scapes Project`,
+    description: "An ambient soundscape on The Scapes Project — press play, let it breathe.",
+    openGraph: {
+      title: quote,
+      description: "A soundscape on The Scapes Project. Tap to play it.",
+      images,
+      type: "website",
+    },
+    twitter: {
+      card: images.length ? "summary_large_image" : "summary",
+      title: quote,
+      description: "A soundscape on The Scapes Project.",
+      images,
+    },
+  };
+}
+
+export default async function SharePage({ params }: { params: Promise<{ slug: string }> }) {
+  const { slug } = await params;
+  return <ShareClient slug={slug} />;
 }
