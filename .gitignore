@@ -36,6 +36,9 @@ public/packs/
 tmp/
 .cache/
 
+# --- Local data (SQLite pack store) ---
+backend/data/
+
 # --- Editor / OS ---
 .vscode/
 .idea/

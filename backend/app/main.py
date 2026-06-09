@@ -75,6 +75,7 @@ class SavePack(BaseModel):
     key: str
     bpm: int
     clips: list[dict]
+    bgUrl: str | None = None   # optional AI background so the share page matches
 
 
 class BgReq(BaseModel):
@@ -171,14 +172,27 @@ async def job_status(job_id: str):
 
 
 # ---- persistence / sharing -------------------------------------------------
+MAX_SAVE_CLIPS = 16
+MAX_CLIP_URL_LEN = 8_000_000  # ~8MB base64 data-URI ceiling (a 12s clip is ~250KB)
+
+
+def _allowed_clip_url(url: str) -> bool:
+    # Only our own clips: inline base64 data-URIs (current) or CDN-hosted (at scale).
+    return url.startswith("data:audio/") or url.startswith(CDN_BASE)
+
+
 @app.post("/soundscapes")
 async def save(pack: SavePack):
+    if not pack.clips or len(pack.clips) > MAX_SAVE_CLIPS:
+        _err(400, "INVALID_PACK")
     for clip in pack.clips:
         url = clip.get("url", "")
-        if not url.startswith(CDN_BASE):
-            log.warning("save.reject_foreign_url url=%s", url)
+        if not _allowed_clip_url(url) or len(url) > MAX_CLIP_URL_LEN:
+            log.warning("save.reject_foreign_url len=%d", len(url))
             _err(400, "INVALID_CLIP_URL")
-    return store.save_pack(pack.model_dump())
+    saved = store.save_pack(pack.model_dump())
+    log.info("save.ok slug=%s clips=%d", saved["slug"], len(pack.clips))
+    return saved
 
 
 @app.get("/s/{slug}")

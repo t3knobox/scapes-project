@@ -42,6 +42,25 @@ def test_save_accepts_cdn_url_and_share_resolves(client):
     assert shared["prompt"] == "p" and shared["slug"] == res["slug"]
 
 
+def test_save_accepts_data_uri_and_share_resolves(client):
+    """The live path: clips are inline base64 data-URIs (no R2)."""
+    pack = {"prompt": "forest", "key": "C major", "bpm": 68, "bgUrl": None,
+            "clips": [{"category": "bass", "url": "data:audio/mpeg;base64,AAAA",
+                       "durationSec": 12, "quantize": "free", "loop": True,
+                       "key": "C major", "bpm": 68}]}
+    res = client.post("/soundscapes", json=pack)
+    assert res.status_code == 200
+    shared = client.get(f"/s/{res.json()['slug']}").json()
+    assert shared["prompt"] == "forest" and len(shared["clips"]) == 1
+    assert shared["clips"][0]["url"].startswith("data:audio/")
+
+
+def test_save_rejects_empty_pack(client):
+    r = client.post("/soundscapes", json={"prompt": "p", "key": "C major", "bpm": 60, "clips": []})
+    assert r.status_code == 400
+    assert r.json()["detail"]["code"] == "INVALID_PACK"
+
+
 def test_share_unknown_slug_404(client):
     r = client.get("/s/nonexistent")
     assert r.status_code == 404

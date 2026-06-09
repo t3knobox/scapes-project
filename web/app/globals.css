@@ -230,6 +230,65 @@ body {
   box-shadow: 0 0 10px rgba(127, 233, 221, 0.6);
 }
 
+/* ---- share link ---- */
+.share-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  width: min(90vw, 30rem);
+}
+.share-link {
+  flex: 1;
+  min-width: 0;
+  padding: 0.5rem 0.8rem;
+  border-radius: 9999px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  color: #cfd6ee;
+  font-size: 0.8rem;
+  font-family: var(--font-body, sans-serif);
+}
+.share-copy {
+  flex: none;
+  padding: 0.5rem 1rem;
+  border-radius: 9999px;
+  background: #7fe9dd;
+  color: #07221f;
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  border: none;
+  transition: filter 0.2s;
+}
+.share-copy:hover {
+  filter: brightness(1.08);
+}
+.share-err {
+  font-size: 0.8rem;
+  color: #e8b0bb;
+}
+
+/* ---- share page ---- */
+.share-caption {
+  font-family: var(--font-serif, serif);
+  font-size: 1.05rem;
+  font-style: italic;
+  color: #c7d0ff;
+  opacity: 0.85;
+}
+.share-cta {
+  margin-top: 0.25rem;
+  font-size: 0.8rem;
+  color: #9a9ab5;
+  text-decoration: none;
+  border-bottom: 1px dashed rgba(255, 255, 255, 0.2);
+  padding-bottom: 2px;
+  transition: color 0.2s;
+}
+.share-cta:hover {
+  color: #cfd6ee;
+}
+
 /* inverted (light) button — stands out against the dark translucent input */
 .btn-invert {
   background: #ececf2;

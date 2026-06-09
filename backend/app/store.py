@@ -1,26 +1,49 @@
-"""In-memory job + pack store (RELIABILITY.md §5).
+"""Job + pack store (RELIABILITY.md §5).
 
-MVP only — single replica. The function interface is what main.py depends on, so
-swapping to Redis (jobs) + Postgres (packs) later is a drop-in. Call reset() in tests.
+Jobs + the dedupe index stay in-memory (ephemeral — swap to Redis at scale).
+Packs persist to SQLite so saved/shared scapes survive a restart; the function
+interface is unchanged so this becomes Postgres/Supabase at scale as a drop-in.
+DB path: env SCAPES_DB (":memory:" in tests) or <backend>/data/scapes.db. Call reset() in tests.
 """
 from __future__ import annotations
 
+import json
+import os
 import secrets
+import sqlite3
 import string
+from pathlib import Path
 
 _ALPHABET = string.ascii_letters + string.digits  # base62 → opaque, non-sequential slugs
 
-jobs: dict[str, dict] = {}            # job_id -> job dict
-_packs: dict[str, dict] = {}          # pack_id -> pack dict
-_slugs: dict[str, str] = {}           # slug -> pack_id
+jobs: dict[str, dict] = {}            # job_id -> job dict (ephemeral)
 _done_hash: dict[str, str] = {}       # request_hash -> job_id (only set when job is done)
+
+_conn: sqlite3.Connection | None = None
+
+
+def _db() -> sqlite3.Connection:
+    """Lazily open one shared connection (so a ":memory:" db persists for the process)."""
+    global _conn
+    if _conn is None:
+        path = os.environ.get("SCAPES_DB")
+        if not path:
+            d = Path(__file__).resolve().parent.parent / "data"
+            d.mkdir(exist_ok=True)
+            path = str(d / "scapes.db")
+        _conn = sqlite3.connect(path, check_same_thread=False)
+        _conn.execute(
+            "CREATE TABLE IF NOT EXISTS packs (id TEXT PRIMARY KEY, slug TEXT UNIQUE, data TEXT)"
+        )
+        _conn.commit()
+    return _conn
 
 
 def reset() -> None:
     jobs.clear()
-    _packs.clear()
-    _slugs.clear()
     _done_hash.clear()
+    _db().execute("DELETE FROM packs")
+    _db().commit()
 
 
 # ---- dedupe index ----------------------------------------------------------
@@ -35,26 +58,30 @@ def mark_done_hash(h: str, job_id: str) -> None:
     _done_hash[h] = job_id
 
 
-# ---- packs / sharing -------------------------------------------------------
+# ---- packs / sharing (persistent) ------------------------------------------
 def _new_slug() -> str:
     while True:
         s = "".join(secrets.choice(_ALPHABET) for _ in range(10))
-        if s not in _slugs:
+        if not _db().execute("SELECT 1 FROM packs WHERE slug = ?", (s,)).fetchone():
             return s
 
 
 def save_pack(pack: dict) -> dict:
     pid = "pack_" + secrets.token_hex(6)
     slug = _new_slug()
-    _packs[pid] = {**pack, "id": pid, "slug": slug}
-    _slugs[slug] = pid
+    full = {**pack, "id": pid, "slug": slug}
+    _db().execute(
+        "INSERT INTO packs (id, slug, data) VALUES (?, ?, ?)", (pid, slug, json.dumps(full))
+    )
+    _db().commit()
     return {"id": pid, "slug": slug}
 
 
 def get_pack(pid: str) -> dict | None:
-    return _packs.get(pid)
+    row = _db().execute("SELECT data FROM packs WHERE id = ?", (pid,)).fetchone()
+    return json.loads(row[0]) if row else None
 
 
 def get_pack_by_slug(slug: str) -> dict | None:
-    pid = _slugs.get(slug)
-    return _packs.get(pid) if pid else None
+    row = _db().execute("SELECT data FROM packs WHERE slug = ?", (slug,)).fetchone()
+    return json.loads(row[0]) if row else None
