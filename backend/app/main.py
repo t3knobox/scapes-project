@@ -7,11 +7,14 @@ Runs end-to-end with zero external services in STUB mode (see runpod_client).
 """
 from __future__ import annotations
 
+import asyncio
 import hashlib
 import json
 import logging
 import os
+import time
 import uuid
+from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
@@ -28,12 +31,36 @@ log = logging.getLogger("etherealpad.api")
 
 MAX_JOB_SEC = float(os.environ.get("MAX_JOB_SEC", "180"))     # module attr → tests monkeypatch
 CDN_BASE = os.environ.get("CDN_BASE", "https://cdn.etherealpad.test")
+SCAPE_TTL_SEC = float(os.environ.get("SCAPE_TTL_DAYS", "14")) * 86400  # reap shares unopened this long
 rate_limiter = RateLimiter(
     int(os.environ.get("RATE_MAX", "5")),
     float(os.environ.get("RATE_WINDOW_SEC", "60")),
 )
 
-app = FastAPI(title="EtherealPad API")
+
+async def _ttl_loop():
+    """Daily: delete saved scapes whose share link hasn't been opened in SCAPE_TTL_SEC."""
+    while True:
+        await asyncio.sleep(86400)
+        try:
+            n = store.sweep_stale(time.time() - SCAPE_TTL_SEC)
+            if n:
+                log.info("ttl.swept count=%d", n)
+        except Exception:
+            log.exception("ttl.sweep_failed")
+
+
+@asynccontextmanager
+async def _lifespan(_app: FastAPI):
+    store.sweep_stale(time.time() - SCAPE_TTL_SEC)   # reap once on boot
+    task = asyncio.create_task(_ttl_loop())
+    try:
+        yield
+    finally:
+        task.cancel()
+
+
+app = FastAPI(title="EtherealPad API", lifespan=_lifespan)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[os.environ.get("FRONTEND_ORIGIN", "*")],

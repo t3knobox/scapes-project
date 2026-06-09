@@ -12,6 +12,7 @@ import os
 import secrets
 import sqlite3
 import string
+import time
 from pathlib import Path
 
 _ALPHABET = string.ascii_letters + string.digits  # base62 → opaque, non-sequential slugs
@@ -33,7 +34,16 @@ def _db() -> sqlite3.Connection:
             path = str(d / "scapes.db")
         _conn = sqlite3.connect(path, check_same_thread=False)
         _conn.execute(
-            "CREATE TABLE IF NOT EXISTS packs (id TEXT PRIMARY KEY, slug TEXT UNIQUE, data TEXT)"
+            "CREATE TABLE IF NOT EXISTS packs "
+            "(id TEXT PRIMARY KEY, slug TEXT UNIQUE, data TEXT, last_accessed REAL)"
+        )
+        # Migrate dbs that predate last_accessed; backfill existing rows to now.
+        try:
+            _conn.execute("ALTER TABLE packs ADD COLUMN last_accessed REAL")
+        except sqlite3.OperationalError:
+            pass  # column already exists
+        _conn.execute(
+            "UPDATE packs SET last_accessed = ? WHERE last_accessed IS NULL", (time.time(),)
         )
         _conn.commit()
     return _conn
@@ -71,7 +81,8 @@ def save_pack(pack: dict) -> dict:
     slug = _new_slug()
     full = {**pack, "id": pid, "slug": slug}
     _db().execute(
-        "INSERT INTO packs (id, slug, data) VALUES (?, ?, ?)", (pid, slug, json.dumps(full))
+        "INSERT INTO packs (id, slug, data, last_accessed) VALUES (?, ?, ?, ?)",
+        (pid, slug, json.dumps(full), time.time()),
     )
     _db().commit()
     return {"id": pid, "slug": slug}
@@ -84,4 +95,16 @@ def get_pack(pid: str) -> dict | None:
 
 def get_pack_by_slug(slug: str) -> dict | None:
     row = _db().execute("SELECT data FROM packs WHERE slug = ?", (slug,)).fetchone()
-    return json.loads(row[0]) if row else None
+    if not row:
+        return None
+    # "Link used" → keep it alive for another TTL window.
+    _db().execute("UPDATE packs SET last_accessed = ? WHERE slug = ?", (time.time(), slug))
+    _db().commit()
+    return json.loads(row[0])
+
+
+def sweep_stale(cutoff_ts: float) -> int:
+    """Delete packs whose share link hasn't been opened since cutoff_ts. Returns count removed."""
+    cur = _db().execute("DELETE FROM packs WHERE last_accessed < ?", (cutoff_ts,))
+    _db().commit()
+    return cur.rowcount

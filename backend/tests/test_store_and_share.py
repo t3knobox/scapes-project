@@ -1,5 +1,14 @@
 """Store + /soundscapes + /s/{slug} tests (RELIABILITY.md §5)."""
+import time
+
 from app import main, store
+
+
+def _age(slug: str, seconds_ago: float) -> None:
+    store._db().execute(
+        "UPDATE packs SET last_accessed = ? WHERE slug = ?", (time.time() - seconds_ago, slug)
+    )
+    store._db().commit()
 
 
 def test_save_and_get_roundtrip():
@@ -65,3 +74,22 @@ def test_share_unknown_slug_404(client):
     r = client.get("/s/nonexistent")
     assert r.status_code == 404
     assert r.json()["detail"]["code"] == "NOT_FOUND"
+
+
+# ---- 2-week TTL ------------------------------------------------------------
+def test_ttl_sweep_deletes_stale_keeps_fresh():
+    old = store.save_pack({"prompt": "old", "key": "C major", "bpm": 60, "clips": []})
+    fresh = store.save_pack({"prompt": "fresh", "key": "C major", "bpm": 60, "clips": []})
+    _age(old["slug"], 30 * 86400)                    # last opened ~30 days ago
+    removed = store.sweep_stale(time.time() - 14 * 86400)
+    assert removed == 1
+    assert store.get_pack_by_slug(old["slug"]) is None
+    assert store.get_pack_by_slug(fresh["slug"]) is not None
+
+
+def test_opening_link_bumps_last_accessed_and_survives_sweep():
+    p = store.save_pack({"prompt": "p", "key": "C major", "bpm": 60, "clips": []})
+    _age(p["slug"], 30 * 86400)                      # would be reaped...
+    assert store.get_pack_by_slug(p["slug"]) is not None   # ...but opening the link bumps it
+    assert store.sweep_stale(time.time() - 14 * 86400) == 0
+    assert store.get_pack_by_slug(p["slug"]) is not None
