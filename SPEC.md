@@ -48,7 +48,7 @@
                               └──────────────────────────────────────────┘      │
                                                  ▲                               │
    ┌─────────────────────────────────────────────┼───────────────────────────────┘
-   │            BACKEND (FastAPI, always-on tiny box — Fly.io / Render)
+   │            BACKEND (FastAPI, always-on tiny box — Railway)
    │
    │  POST /generate          → parse prompt → build per-category model prompts
    │                            → enqueue job → call RunPod Serverless /run (async)
@@ -693,7 +693,7 @@ pip install fastapi "uvicorn[standard]" httpx pydantic boto3
 uvicorn app.main:app --reload --port 8000
 ```
 `.env` (frontend): `NEXT_PUBLIC_API_BASE=http://localhost:8000`
-`.env` (backend): `RUNPOD_ENDPOINT_ID, RUNPOD_API_KEY, R2_*, CDN_BASE, FRONTEND_ORIGIN`
+`.env` (backend): `RUNPOD_ENDPOINT_ID, RUNPOD_API_KEY, ANTHROPIC_API_KEY, R2_*, CDN_BASE, FRONTEND_ORIGIN`
 
 ### 6.2 RunPod Serverless
 1. Build & push the worker image:
@@ -716,12 +716,28 @@ uvicorn app.main:app --reload --port 8000
   packs get copied to a `saved/` prefix excluded from expiry.
 
 ### 6.4 Deploy backend + frontend
-- **Backend:** Fly.io or Render, smallest instance (256–512MB). Add Upstash Redis if >1
-  replica. Set all env vars; expose `/health` for the platform healthcheck.
-- **Frontend:** Vercel (free). Set `NEXT_PUBLIC_API_BASE` to the backend URL.
+Three deploy targets from one monorepo. The runtimes are different beasts (Node frontend,
+Python orchestrator, GPU worker) and the app is already cross-origin (`CORSMiddleware` +
+`FRONTEND_ORIGIN`), so separating them costs nothing.
+
+- **Frontend** (`web/`, Next.js) → **Vercel** (free at our scale): native Next support, edge
+  CDN, and the `/s/{slug}` SSR share pages work with zero config. Set `NEXT_PUBLIC_API_BASE` =
+  the Railway backend URL.
+- **Backend** (`backend/`, FastAPI) → **Railway**: one tiny always-on box (256–512MB), one
+  dashboard/bill for the Python side. Env: `RUNPOD_*`, `ANTHROPIC_API_KEY` (+ `EXPANDER_MODEL`),
+  `FRONTEND_ORIGIN` (= the Vercel domain), `CDN_BASE`; plus `R2_*` and `DATABASE_URL` at scale.
+  Expose `/health` for the platform healthcheck. Add Upstash Redis only past one replica — the
+  in-memory `jobs` dict breaks then (RELIABILITY.md §5).
+- **GPU worker** (`worker/`) → **RunPod Serverless, unchanged.** Do NOT move this elsewhere —
+  scale-to-zero is the entire reason playback is $0 and a generation is a few cents; a
+  persistent GPU box blows up the cost model.
 - **DB:** Supabase free tier (Postgres + auth). Tables: `users`, `soundscapes(id, slug,
   prompt, key, bpm, owner_id, created_at)`, `clips(id, soundscape_id, category, url,
   duration, quantize)`.
+
+> **Monorepo wiring:** one repo, two app deploys — point Vercel at `web/` and Railway at
+> `backend/`. **MVP note:** today the worker inlines audio as base64 data-URIs and the job
+> store is in-memory; R2 + the Supabase DB are the at-scale path, not yet wired.
 
 ### 6.5 Low-cost playbook
 | Lever | Action |
@@ -730,7 +746,7 @@ uvicorn app.main:app --reload --port 8000
 | Cold start | Bake weights into the image + Flashboot; pre-warm with a cron ping before launches/demos |
 | Egress | R2 (zero egress fee) + MP3 for non-loop clips |
 | Storage | 24–72h lifecycle expiry on unsaved packs |
-| Backend | One tiny always-on box; everything heavy is client-side |
+| Backend | One tiny always-on box on **Railway**; everything heavy is client-side |
 | Over-gen | Cache identical prompt hashes → instant reuse, zero GPU (cheap upgrade later) |
 
 **Rough cost:** an L4 serverless render of 10 clips ≈ 60–120 GPU-seconds ≈ a few US
