@@ -8,26 +8,32 @@ from __future__ import annotations
 import random
 
 KEYS = ["C major", "D major", "E major", "A major"]
-GLOBAL_POS = "high quality, clean, hi-fi, crisp, detailed, ethereal"
-GLOBAL_NEG = "low quality, distorted, muddy, lo-fi, harsh clipping"
+GLOBAL_POS = "high quality, clean, warm, balanced, smooth, hi-fi"
+GLOBAL_NEG = "low quality, distorted, muddy, harsh, piercing, shrill, jarring, clipping"
 
 # category: (count, durationSec, quantize, template)
 # HYBRID: the client-side synth handles ALL tonal/musical content (chords, bass, key-jabs),
 # always in-key and reliable. This generated layer is Stable Audio Open's job — the CHARACTER:
 # ear-candy SFX, percussion one-shots, and environmental sounds. None of it needs to be in key.
 TEMPLATES: dict[str, tuple[int, int, str, str]] = {
-    "texture":       (2, 12, "free", "{s}, ambient atmospheric texture, airy evolving drone, soft pad, "
-                      "no melody, no beat, ethereal, seamless"),
-    "environmental": (2, 12, "free", "{s}, realistic field recording of the natural environment, "
-                      "birdsong, flowing water, wind, rustling, ambient nature, no music, seamless"),
-    "earcandy":      (2, 6, "soft", "{s}, delicate ear-candy sound design, glassy sparkles, granular clicks, "
-                      "soft foley, shimmer, crisp high frequencies, no melody"),
-    "perc":          (2, 4, "soft", "{s}, single isolated percussion hit, dry acoustic drum, hand percussion, "
-                      "woodblock, rim, crisp transient, no music, no melody"),
+    "bass":          (1, 12, "free", "{s}, deep low-frequency sustained drone, warm sub-bass foundation in {k}, "
+                      "gentle rumble, smooth, no melody, no high frequencies, seamless"),
+    "mid":           (1, 12, "free", "{s}, warm sustained mid-range pad in {k}, soft body, mellow, "
+                      "no melody, no harsh highs, seamless"),
+    "high":          (1, 12, "free", "{s}, soft airy high shimmer, delicate sustained sparkle, subtle, gentle, "
+                      "no melody, not harsh, not piercing, seamless"),
+    "environmental": (1, 12, "free", "{s}, realistic field recording matching the scene, soft distant natural "
+                      "ambience, no music, not jarring, seamless"),
+    "voice":         (1, 12, "free", "{s}, wordless sustained vocal pad in {k}, soft breathy human choir, gentle "
+                      "aah, no words, no melody, no instruments, seamless"),
+    "earcandy":      (2, 6, "soft", "{s}, delicate ear-candy sound design, soft glassy sparkles, gentle granular "
+                      "clicks, subtle shimmer, no melody"),
+    "perc":          (2, 4, "soft", "{s}, soft organic percussion hit, hand drum, conga, woodblock, gentle warm "
+                      "tap, dry, no music, no melody"),
 }
 
-# Categories that loop continuously (atmosphere/nature) vs. one-shot accents.
-LOOP_CATS = ("texture", "environmental")
+# Categories that loop continuously vs. one-shot accents.
+LOOP_CATS = ("bass", "mid", "high", "environmental", "voice")
 
 
 def clean(p: str) -> str:

@@ -32,18 +32,31 @@ export function PadGrid() {
   }, [pads.length]);
 
   if (!pads.length) return null;
+  const n = pads.length;
 
   return (
-    <div className="grid grid-cols-2 sm:grid-cols-4 gap-5">
-      {pads.map((c, i) => (
-        <Pad
-          key={c.id}
-          clip={c}
-          state={padState[c.id] ?? "idle"}
-          hotkey={KEY_ROW[i]?.toUpperCase()}
-          onTrigger={() => session.triggerByIndex(i)}
-        />
-      ))}
+    <div className="pad-ring">
+      <div className="pad-ring-core" aria-hidden />
+      {pads.map((c, i) => {
+        // Evenly distribute on a circle, starting at the top, going clockwise.
+        const a = (i / n) * 2 * Math.PI - Math.PI / 2;
+        return (
+          <div
+            key={c.id}
+            className="orb-slot"
+            style={
+              { "--x": Math.cos(a).toFixed(4), "--y": Math.sin(a).toFixed(4) } as React.CSSProperties
+            }
+          >
+            <Pad
+              clip={c}
+              state={padState[c.id] ?? "idle"}
+              hotkey={KEY_ROW[i]?.toUpperCase()}
+              onTrigger={() => session.triggerByIndex(i)}
+            />
+          </div>
+        );
+      })}
     </div>
   );
 }

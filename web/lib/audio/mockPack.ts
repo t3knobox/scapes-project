@@ -60,10 +60,11 @@ export async function renderMockPack(): Promise<{ clips: Clip[]; key: string; bp
   ): Clip => ({ id, category, src, durationSec, quantize, loop, key: KEY, bpm: BPM });
 
   const clips: Clip[] = [
-    make("texture_0", "texture", await texture(), 6, "free", true),
-    make("texture_1", "texture", await texture(), 6, "free", true),
+    make("bass_0", "bass", await texture(), 6, "free", true),
+    make("mid_0", "mid", await texture(), 6, "free", true),
+    make("high_0", "high", await texture(), 6, "free", true),
     make("environmental_0", "environmental", await texture(), 6, "free", true),
-    make("environmental_1", "environmental", await texture(), 6, "free", true),
+    make("voice_0", "voice", await texture(), 6, "free", true),
     make("earcandy_0", "earcandy", await earcandy("F#5"), 1.6, "soft", false),
     make("earcandy_1", "earcandy", await earcandy("A5"), 1.6, "soft", false),
     make("perc_0", "perc", await perc("A5"), 0.8, "soft", false),

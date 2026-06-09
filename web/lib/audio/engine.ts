@@ -17,7 +17,7 @@ class AudioEngine {
   build() {
     if (this.built) return;
     this.master = new Tone.Channel({ volume: 0 }); // controlled by the volume slider
-    this.reverb = new Tone.Reverb({ decay: 6, wet: 0.22 }); // shared space for all voices
+    this.reverb = new Tone.Reverb({ decay: 4, wet: 0.22 }); // shared space; shorter tail = lighter convolution
     this.limiter = new Tone.Limiter(-1); // catch the sum of many voices
     this.master.chain(this.reverb, this.limiter, Tone.getDestination());
     this.meter = new Tone.Meter({ smoothing: 0.85, normalRange: true });
@@ -45,7 +45,7 @@ class AudioEngine {
     await Tone.start();
     // More scheduling headroom → fewer audio glitches when the main thread is busy
     // (animations, React). Ambient timing is loose, so the small added latency is fine.
-    Tone.getContext().lookAhead = 0.2;
+    Tone.getContext().lookAhead = 0.3;
     await this.reverb.ready; // impulse response ready before audio flows
     this.bpm = bpm;
     Tone.getTransport().bpm.value = bpm;

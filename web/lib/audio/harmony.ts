@@ -44,7 +44,7 @@ function parseKey(key: string): { rootMidi: number; mode: Mode } {
 export class HarmonyEngine {
   private synth: Tone.PolySynth;
   private filter = new Tone.Filter(1100, "lowpass");
-  private filterLFO = new Tone.LFO({ frequency: 0.03, min: 600, max: 2600 });
+  private filterLFO = new Tone.LFO({ frequency: 0.03, min: 600, max: 2100 }); // warmer ceiling (less bright)
   private widthLFO = new Tone.LFO({ frequency: 0.02, min: 0.2, max: 0.8 });
   private widener = new Tone.StereoWidener(0.5);
   private chorus = new Tone.Chorus(0.2, 3.5, 0.4);
@@ -75,7 +75,7 @@ export class HarmonyEngine {
     this.prog = PROGRESSIONS[mode];
 
     this.synth = new Tone.PolySynth(Tone.Synth, {
-      oscillator: { type: "fatsine", count: 2, spread: 18 },
+      oscillator: { type: "fatsine", count: 1, spread: 18 }, // single osc/voice → half the DSP (chorus adds width back)
       envelope: { attack: 2.6, decay: 1.5, sustain: 0.85, release: 4.5 }, // long → seamless overlap
       volume: -4,
     });
@@ -95,7 +95,7 @@ export class HarmonyEngine {
     const count = 1 + Math.floor(Math.random() * 2); // 1–2 notes
     for (let i = 0; i < count; i++) {
       const off = offsets[Math.floor(Math.random() * offsets.length)];
-      const note = Tone.Frequency(this.rootMidi + off + 24, "midi").toNote(); // 2 octaves up = glassy
+      const note = Tone.Frequency(this.rootMidi + off + 12, "midi").toNote(); // 1 octave up = warm mid, not piercing
       const at = time + beat * Math.floor(Math.random() * this.barsPerChord * 4);
       try {
         this.jab.triggerAttackRelease(note, "8n", at, 0.35 + Math.random() * 0.3);
@@ -112,26 +112,37 @@ export class HarmonyEngine {
   }
 
   play() {
+    if (this.repeatId !== undefined) return; // guard: never double-schedule the bed
     const T = Tone.getTransport();
     this.filterLFO.start();
     this.widthLFO.start();
     this.idx = 0;
     this.cycle = 0;
     this.current = this.notes(this.prog[0]);
-    this.synth.triggerAttack(this.current); // tonic first — the "home" we resolve back to
+    try {
+      this.synth.triggerAttack(this.current); // tonic first — the "home" we resolve back to
+    } catch {
+      /* noop */
+    }
 
     this.repeatId = T.scheduleRepeat((time) => {
-      this.synth.triggerRelease(this.current, time); // release old (long tail)…
-      this.idx = (this.idx + 1) % this.prog.length;
-      if (this.idx === 0) this.cycle++;
+      // Wrap the whole chord change: an unhandled Tone scheduling error here would otherwise
+      // break the transport and silence everything.
+      try {
+        this.synth.triggerRelease(this.current, time); // release old (long tail)…
+        this.idx = (this.idx + 1) % this.prog.length;
+        if (this.idx === 0) this.cycle++;
 
-      let offsets = this.prog[this.idx];
-      // every 3rd cycle, replace the pre-tonic chord with a V7 for a stronger cadence
-      if (this.idx === this.prog.length - 1 && this.cycle % 3 === 2) offsets = V7;
+        let offsets = this.prog[this.idx];
+        // every 3rd cycle, replace the pre-tonic chord with a V7 for a stronger cadence
+        if (this.idx === this.prog.length - 1 && this.cycle % 3 === 2) offsets = V7;
 
-      this.current = this.notes(offsets);
-      this.synth.triggerAttack(this.current, time + 0.02); // …attack new — they overlap → no gap
-      this.maybeJab(time, offsets); // sprinkle in-key bell accents
+        this.current = this.notes(offsets);
+        this.synth.triggerAttack(this.current, time + 0.02); // …attack new — overlap → no gap
+        this.maybeJab(time, offsets); // sprinkle in-key bell accents
+      } catch {
+        /* keep the bed alive even if one chord change hiccups */
+      }
     }, `${this.barsPerChord}m`);
   }
 

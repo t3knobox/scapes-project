@@ -20,11 +20,11 @@ export function buildAutoFXChain(category: Category, id: string): Tone.ToneAudio
   const rng = seeded(id);
   const nodes: Tone.ToneAudioNode[] = [];
 
-  // Stereo width on every generated voice (the synth bed handles its own width).
-  nodes.push(new Tone.StereoWidener(0.35 + rng() * 0.4));
+  // Stereo width on everything except bass (keep the low foundation centered/mono).
+  if (category !== "bass") nodes.push(new Tone.StereoWidener(0.35 + rng() * 0.4));
 
-  // Slow shimmer on the atmospheric/looping layers.
-  if (["texture", "environmental"].includes(category)) {
+  // Slow shimmer on the pad-like atmospheric layers.
+  if (["mid", "high", "voice"].includes(category)) {
     nodes.push(new Tone.Chorus(0.3 + rng(), 3.5, 0.4).start());
   }
 

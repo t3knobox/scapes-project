@@ -310,12 +310,53 @@ body {
   font-weight: 600;
 }
 
+/* ---- pad ring (orbs arranged on a circle) ---- */
+.pad-ring {
+  position: relative;
+  width: min(90vw, 560px);
+  height: min(90vw, 560px);
+  margin: 1.5rem auto 0;
+  --ring-r: min(41vw, 230px); /* orbit radius */
+}
+.orb-slot {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  /* center on the ring, then push out to the orbit position */
+  transform: translate(-50%, -50%)
+    translate(calc(var(--x) * var(--ring-r)), calc(var(--y) * var(--ring-r)));
+}
+/* soft breathing heart in the middle of the ring */
+.pad-ring-core {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 44%;
+  height: 44%;
+  transform: translate(-50%, -50%);
+  border-radius: 9999px;
+  background: radial-gradient(circle, rgba(180, 200, 255, 0.07), transparent 70%);
+  pointer-events: none;
+  animation: corepulse 7s ease-in-out infinite;
+}
+@keyframes corepulse {
+  0%,
+  100% {
+    opacity: 0.45;
+    transform: translate(-50%, -50%) scale(0.92);
+  }
+  50% {
+    opacity: 0.85;
+    transform: translate(-50%, -50%) scale(1.06);
+  }
+}
+
 /* ---- pads (glowing orbs) ----
    .orb-wrap carries anime.js float/entrance; inner .orb keeps CSS state transforms. */
 .orb-wrap {
   position: relative;
-  width: 7.5rem;
-  height: 7.5rem;
+  width: clamp(4.75rem, 15vmin, 6.25rem);
+  height: clamp(4.75rem, 15vmin, 6.25rem);
   display: grid;
   place-items: center;
   opacity: 0;
