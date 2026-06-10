@@ -10,6 +10,7 @@ class AudioEngine {
   private reverb!: Tone.Reverb;
   private limiter!: Tone.Limiter;
   private meter?: Tone.Meter; // post-limiter tap for audio-reactive visuals
+  private reverbLFO?: Tone.LFO; // slowly breathes the reverb wet so the space feels alive
   private built = false;
   private started = false;
   bpm = 72;
@@ -24,6 +25,9 @@ class AudioEngine {
     this.reverb = new Tone.Reverb({ decay: 4, wet: 0.22 }); // shared space; shorter tail = lighter convolution
     this.limiter = new Tone.Limiter(-1); // catch the sum of many voices
     this.master.chain(this.reverb, this.limiter, Tone.getDestination());
+    // Breathe the reverb wet (one cheap LFO) so the whole space slowly swells + contracts.
+    this.reverbLFO = new Tone.LFO({ frequency: 0.04, min: 0.18, max: 0.36 }).start();
+    this.reverbLFO.connect(this.reverb.wet);
     this.meter = new Tone.Meter({ smoothing: 0.85, normalRange: true });
     this.limiter.connect(this.meter); // dead-end fan-out tap (reads, doesn't pass on)
     this.built = true;

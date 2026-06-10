@@ -52,12 +52,19 @@ export class PadVoice {
     }
 
     const T = Tone.getTransport();
-    const at: Tone.Unit.Time =
-      this.clip.quantize === "free" ? `+${0.5 + Math.random()}` : T.nextSubdivision("2m");
+    // Fire on click — a tiny lookahead for scheduler safety, no quantize-to-bar wait. Responsive
+    // feedback beats grid-lock for a tap-to-play instrument; the harmony bed is the timed backbone.
+    const at = "+0.03";
+
+    // Tasteful per-trigger variation (no buffer mutation, so cheap + safe): pull a different
+    // slice of sustained textures, and wobble the pitch of non-tonal hits so none are identical.
+    const nonTonal = this.clip.category === "perc" || this.clip.category === "earcandy";
+    this.player.playbackRate = nonTonal ? 1 + (Math.random() - 0.5) * 0.05 : 1;
+    const offset = this.clip.loop ? Math.random() * Math.min(2.5, this.clip.durationSec * 0.4) : 0;
 
     try {
       this.set("queued", cb);
-      this.player.start(at);
+      this.player.start(at, offset);
       T.scheduleOnce(() => this.set("playing", cb), at);
       if (!this.clip.loop) {
         T.scheduleOnce(() => this.set("idle", cb), `+${this.clip.durationSec + 2}`);
