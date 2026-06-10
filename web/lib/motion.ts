@@ -21,10 +21,10 @@ export function fadeUp(selector: string) {
 }
 
 /**
- * Orbs spring in on a stagger, then settle into a continuous out-of-phase "breathing"
- * float. remove() first so a regenerate doesn't stack a second breathing loop.
- * Note: float is on .orb-wrap (translateY) while the inner .orb keeps its CSS state
- * transforms (scale/glow) — separate layers, no conflict.
+ * Orbs spring in on a stagger (one-shot). The continuous "breathing" float is a CSS
+ * animation (`orbBreathe` on .orb-wrap, using the independent `translate` property so it
+ * composes with this entrance's transform) — kept off the main thread for audio smoothness.
+ * remove() first so a regenerate doesn't stack a second entrance.
  */
 export function entranceOrbsAndBreathe() {
   remove(".orb-wrap");
@@ -35,16 +35,6 @@ export function entranceOrbsAndBreathe() {
     duration: 820,
     ease: "outBack",
     delay: stagger(70),
-    onComplete: () => {
-      animate(".orb-wrap", {
-        translateY: [-6, 6],
-        duration: 3400,
-        ease: "inOutSine",
-        loop: true,
-        alternate: true,
-        delay: stagger(240), // phase offset → orbs breathe out of sync (organic)
-      });
-    },
   });
 }
 

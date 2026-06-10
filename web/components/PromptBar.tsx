@@ -5,9 +5,26 @@ import { session } from "@/lib/audio/session";
 import { renderMockPack } from "@/lib/audio/mockPack";
 import { fetchBackground } from "@/lib/background";
 import { generateSoundscape } from "@/lib/generate";
+import { HowToUse } from "./HowToUse";
 
 // Flip to "1" in web/.env.local once the RunPod audio worker endpoint is live.
 const USE_REAL_AUDIO = process.env.NEXT_PUBLIC_REAL_AUDIO === "1";
+
+// Seeds for the "Surprise me" button — evocative + spread across the scene palettes.
+const SURPRISE_PROMPTS = [
+  "a misty forest at dawn with a stream",
+  "drifting through deep space",
+  "a snowed-in cabin by a crackling fire",
+  "rain on a quiet café window",
+  "a faded neon city at 3am",
+  "an underwater cathedral",
+  "ocean waves at sunrise",
+  "a temple garden with wind chimes",
+  "a thunderstorm rolling over the plains",
+  "floating above the clouds at golden hour",
+  "a moonlit desert, vast and still",
+  "a cozy library on a rainy afternoon",
+];
 
 const ERROR_COPY: Record<string, string> = {
   PROMPT_EMPTY: "Describe a soundscape first.",
@@ -25,9 +42,7 @@ function fmt(sec: number) {
 }
 
 export function PromptBar() {
-  const [text, setText] = useState(
-    "floating through misty ancient forests at dawn with gentle chimes",
-  );
+  const [text, setText] = useState("");
   const [progress, setProgress] = useState(0);
   const [elapsed, setElapsed] = useState(0);
   const [error, setError] = useState<string | null>(null);
@@ -43,6 +58,11 @@ export function PromptBar() {
     const t = setInterval(() => setElapsed((e) => e + 1), 1000);
     return () => clearInterval(t);
   }, [loading]);
+
+  function surprise() {
+    const opts = SURPRISE_PROMPTS.filter((p) => p !== text);
+    setText(opts[Math.floor(Math.random() * opts.length)] ?? SURPRISE_PROMPTS[0]);
+  }
 
   async function generate() {
     const store = useStore.getState();
@@ -73,7 +93,7 @@ export function PromptBar() {
       : "Waking the sound engine… first run can take a few minutes ✨";
 
   return (
-    <div className="w-full max-w-xl flex flex-col items-center gap-2">
+    <div className="w-full max-w-xl flex flex-col items-center gap-3">
       <div className="w-full flex gap-3">
         <input
           value={text}
@@ -89,6 +109,13 @@ export function PromptBar() {
           disabled={loading}
         >
           {loading ? "Generating…" : hasPack ? "Regenerate" : "Generate"}
+        </button>
+      </div>
+
+      <div className="prompt-controls">
+        <HowToUse />
+        <button className="howto-btn" onClick={surprise} disabled={loading} title="Fill the box with a random idea">
+          <span aria-hidden>✦</span> Surprise me
         </button>
       </div>
 

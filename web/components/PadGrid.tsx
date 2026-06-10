@@ -52,7 +52,11 @@ export function PadGrid() {
             key={c.id}
             className="orb-slot"
             style={
-              { "--x": Math.cos(a).toFixed(4), "--y": Math.sin(a).toFixed(4) } as React.CSSProperties
+              {
+                "--x": Math.cos(a).toFixed(4),
+                "--y": Math.sin(a).toFixed(4),
+                "--i": i,
+              } as React.CSSProperties
             }
           >
             <Pad

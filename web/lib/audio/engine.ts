@@ -16,6 +16,10 @@ class AudioEngine {
 
   build() {
     if (this.built) return;
+    // "playback" = a larger audio buffer + 0.5s scheduling lookahead, so brief CPU/GPU
+    // rendering spikes (scroll, tab refocus, GC) can't cause dropouts. Ambient timing is
+    // loose, so the extra latency is unnoticeable. Must be set before any nodes are created.
+    Tone.setContext(new Tone.Context({ latencyHint: "playback", lookAhead: 0.5 }));
     this.master = new Tone.Channel({ volume: 0 }); // controlled by the volume slider
     this.reverb = new Tone.Reverb({ decay: 4, wet: 0.22 }); // shared space; shorter tail = lighter convolution
     this.limiter = new Tone.Limiter(-1); // catch the sum of many voices
@@ -42,10 +46,7 @@ class AudioEngine {
   async start(bpm = 72) {
     this.build();
     if (this.started) return;
-    await Tone.start();
-    // More scheduling headroom → fewer audio glitches when the main thread is busy
-    // (animations, React). Ambient timing is loose, so the small added latency is fine.
-    Tone.getContext().lookAhead = 0.3;
+    await Tone.start(); // resumes the playback-latency context configured in build()
     await this.reverb.ready; // impulse response ready before audio flows
     this.bpm = bpm;
     Tone.getTransport().bpm.value = bpm;

@@ -13,11 +13,13 @@ export function AudioAura() {
   useEffect(() => {
     let raf = 0;
     let smooth = 0;
+    let frame = 0;
     const tick = () => {
-      const v = engine.getLevel();
-      smooth += (v - smooth) * 0.2; // extra easing on top of the meter's smoothing
-      ref.current?.style.setProperty("--level", smooth.toFixed(3));
       raf = requestAnimationFrame(tick);
+      if (frame++ % 2) return; // ~30fps is plenty for a glow; halves the main-thread work
+      const v = engine.getLevel();
+      smooth += (v - smooth) * 0.3;
+      ref.current?.style.setProperty("--level", smooth.toFixed(3));
     };
     raf = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(raf);

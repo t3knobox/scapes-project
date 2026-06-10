@@ -1,34 +1,15 @@
 "use client";
-import { useEffect, useRef } from "react";
-import { animate } from "animejs";
 
-const N = 28;
+const N = 10;
 
-/** White fireflies: anime.js drives slow drift (transform), CSS pulses the glow (opacity).
- *  Each one gets its own pulse duration + delay so they twinkle out of sync. */
+/** White fireflies — PURE CSS: each one drifts (translate) + twinkles (opacity) entirely on
+ *  the compositor, so there's zero per-frame JavaScript competing with the audio scheduler. */
 export function Motes() {
-  const ref = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    const dots = ref.current?.querySelectorAll<HTMLElement>(".mote") ?? [];
-    dots.forEach((d, i) => {
-      const dir = i % 2 ? 1 : -1;
-      animate(d, {
-        translateX: dir * (16 + (i % 5) * 9),
-        translateY: -(18 + (i % 4) * 15),
-        duration: 7000 + (i % 6) * 1300,
-        ease: "inOutSine",
-        loop: true,
-        alternate: true,
-        delay: i * 130,
-      });
-    });
-  }, []);
-
   return (
-    <div ref={ref} className="motes" aria-hidden>
+    <div className="motes" aria-hidden>
       {Array.from({ length: N }).map((_, i) => {
         const size = 2 + (i % 3); // 2–4px
+        const dir = i % 2 ? 1 : -1;
         return (
           <span
             key={i}
@@ -39,6 +20,9 @@ export function Motes() {
                 top: `${(i * 31 + 7) % 100}%`,
                 width: `${size}px`,
                 height: `${size}px`,
+                "--tx": `${dir * (16 + (i % 5) * 9)}px`,
+                "--ty": `${-(18 + (i % 4) * 15)}px`,
+                "--drift-dur": `${7 + (i % 6) * 1.3}s`,
                 "--dur": `${3.5 + (i % 5) * 0.8}s`,
                 animationDelay: `${(i % 7) * 0.6}s`,
               } as React.CSSProperties

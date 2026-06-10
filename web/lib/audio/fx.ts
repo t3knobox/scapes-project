@@ -20,6 +20,18 @@ export function buildAutoFXChain(category: Category, id: string): Tone.ToneAudio
   const rng = seeded(id);
   const nodes: Tone.ToneAudioNode[] = [];
 
+  // Tame piercing top-end AT THE SOURCE so a bright clip can never be painful — SAO ignores
+  // "not harsh" prompts sometimes. The in-key synth already provides the pleasant sparkle.
+  if (category === "high") {
+    // Cut into the actual harsh/painful band (~2.5-5kHz, where the ear is most sensitive) —
+    // a 5kHz cutoff sat above it and did nothing. Plus a peaking dip right on the sore spot.
+    nodes.push(new Tone.Filter({ frequency: 2800, type: "lowpass", rolloff: -24 }));
+    nodes.push(new Tone.Filter({ frequency: 3500, type: "peaking", Q: 1, gain: -12 }));
+    nodes.push(new Tone.Gain(0.5)); // and noticeably quieter
+  } else if (category === "earcandy") {
+    nodes.push(new Tone.Filter({ frequency: 7000, type: "lowpass", rolloff: -12 }));
+  }
+
   // Stereo width on everything except bass (keep the low foundation centered/mono).
   if (category !== "bass") nodes.push(new Tone.StereoWidener(0.35 + rng() * 0.4));
 
