@@ -4,6 +4,7 @@ import { PadVoice } from "./pad";
 import { AutoScheduler } from "./autoMode";
 import { useStore } from "@/state/store";
 import type { Clip, PadState } from "./types";
+import { detectPitch, midiToNote } from "./pitch";
 
 /**
  * Orchestrates the live audio and bridges it to the UI store.
@@ -20,6 +21,34 @@ function padCb(v: PadVoice) {
   return (s: PadState) => useStore.getState().setPadState(v.clip.id, s);
 }
 
+// EXPERIMENT (?sampler): pick the first clean single-pitch tonal clip (prefer low register, to
+// minimise resampling shift) and route the chord bed through a Tone.Sampler of its timbre —
+// proving "AI-generated timbre + our guaranteed-in-key notes".
+const TONAL_PREFERENCE = ["bass", "mid", "voice", "high"];
+// Experiment bar: real single-note samples score ~0.85+, but today's evolving textures are
+// lower — accept the best tonal clip down to this so the concept is at least audible now.
+const EXPERIMENT_MIN_CONF = 0.5;
+function trySampleChordVoice(h: HarmonyEngine, vs: PadVoice[]) {
+  const ordered = TONAL_PREFERENCE.flatMap((cat) => vs.filter((v) => v.clip.category === cat));
+  let best: { ab: AudioBuffer; midi: number; freq: number; conf: number; cat: string } | null = null;
+  for (const v of ordered) {
+    const ab = v.audioBuffer;
+    if (!ab) continue;
+    const res = detectPitch(ab.getChannelData(0), ab.sampleRate);
+    console.log(
+      `[sampler] "${v.clip.category}" -> ${res ? `${midiToNote(res.midi)} conf ${res.confidence.toFixed(2)}` : "no pitch"}`,
+    );
+    if (res && (!best || res.confidence > best.conf))
+      best = { ab, midi: res.midi, freq: res.freq, conf: res.confidence, cat: v.clip.category };
+  }
+  if (best && best.conf >= EXPERIMENT_MIN_CONF) {
+    h.useSample(best.ab, best.midi, best.freq);
+    console.log(`[sampler] ✓ chord voice = "${best.cat}" @ ${midiToNote(best.midi)} (conf ${best.conf.toFixed(2)})`);
+  } else {
+    console.log("[sampler] no usable tonal clip → staying on synth");
+  }
+}
+
 export const session = {
   voices: () => voices,
 
@@ -32,6 +61,10 @@ export const session = {
     harmony = new HarmonyEngine(keyName);
     voices = clips.map((c) => new PadVoice(c)); // synth is the bed; every clip is a pad
     await Promise.all(voices.map((v) => v.load()));
+
+    if (typeof window !== "undefined" && new URLSearchParams(window.location.search).has("sampler")) {
+      trySampleChordVoice(harmony, voices);
+    }
 
     auto = new AutoScheduler(voices, (v) => v.trigger(padCb(v)));
     store.setClips(clips, keyName, bpm);

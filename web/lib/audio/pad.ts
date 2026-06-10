@@ -29,6 +29,11 @@ export class PadVoice {
     await Tone.loaded();
   }
 
+  /** Decoded audio (once loaded) for pitch analysis / sampling. */
+  get audioBuffer(): AudioBuffer | undefined {
+    return this.player.loaded ? this.player.buffer.get() : undefined;
+  }
+
   private set(s: PadState, cb?: (s: PadState) => void) {
     this.state = s;
     cb?.(s);

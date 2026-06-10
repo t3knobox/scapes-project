@@ -1,5 +1,6 @@
 import * as Tone from "tone";
 import { engine } from "./engine";
+import { midiToNote } from "./pitch";
 
 type Mode = "ionian" | "aeolian";
 
@@ -43,6 +44,9 @@ function parseKey(key: string): { rootMidi: number; mode: Mode } {
  */
 export class HarmonyEngine {
   private synth: Tone.PolySynth;
+  private sampler?: Tone.Sampler; // optional SAO-timbre chord voice (the ?sampler experiment)
+  private active!: Tone.PolySynth | Tone.Sampler; // whichever voice currently plays the chords
+  private tuneRatio = 1; // corrects the sample's off-concert pitch onto 12-TET (sampler only)
   private filter = new Tone.Filter(1100, "lowpass");
   private filterLFO = new Tone.LFO({ frequency: 0.03, min: 600, max: 2100 }); // warmer ceiling (less bright)
   private widthLFO = new Tone.LFO({ frequency: 0.02, min: 0.2, max: 0.8 });
@@ -86,6 +90,35 @@ export class HarmonyEngine {
 
     this.jabDelay.wet.value = 0.25;
     this.jab.chain(this.jabDelay, engine.master);
+    this.active = this.synth; // default chord voice; swap to a Sampler via useSample()
+  }
+
+  /**
+   * EXPERIMENT: render the chord bed through a Tone.Sampler built from one pitch-detected SAO
+   * clip — an AI-generated timbre playing our guaranteed-in-key notes. It joins the same chord
+   * FX chain; the PolySynth stays wired but is simply never triggered.
+   */
+  useSample(buffer: AudioBuffer, baseMidi: number, detectedFreq: number) {
+    // SAO isn't at concert pitch, so the clip's true pitch ≠ the named note. Scale every note
+    // we ask for by this ratio so the resampled bed lands exactly on 12-TET (in tune with the
+    // key-jabs and the target scale). Without it, the whole bed is detuned up to ~50 cents.
+    const trueBaseFreq = 440 * Math.pow(2, (baseMidi - 69) / 12);
+    this.tuneRatio = trueBaseFreq / detectedFreq;
+    this.sampler = new Tone.Sampler({
+      urls: { [midiToNote(baseMidi)]: buffer },
+      attack: 2, // long, pad-like fade so chords overlap seamlessly
+      release: 4,
+      volume: -6,
+    });
+    this.sampler.connect(this.chorus); // join chorus → filter → widener → gain → master
+    this.active = this.sampler;
+  }
+
+  /** Notes the active voice should receive: note names for the synth; tuning-corrected
+   *  frequencies for the sampler (so an off-concert sample still hits the exact scale tones). */
+  private voiceNotes(notes: string[]): (string | number)[] {
+    if (this.active !== this.sampler) return notes;
+    return notes.map((n) => Tone.Frequency(n).toFrequency() * this.tuneRatio);
   }
 
   /** Sprinkle a couple of in-key bell notes (high chord tones) over the current chord. Sparse. */
@@ -120,7 +153,7 @@ export class HarmonyEngine {
     this.cycle = 0;
     this.current = this.notes(this.prog[0]);
     try {
-      this.synth.triggerAttack(this.current); // tonic first — the "home" we resolve back to
+      this.active.triggerAttack(this.voiceNotes(this.current)); // tonic first — the "home" we resolve to
     } catch {
       /* noop */
     }
@@ -129,7 +162,7 @@ export class HarmonyEngine {
       // Wrap the whole chord change: an unhandled Tone scheduling error here would otherwise
       // break the transport and silence everything.
       try {
-        this.synth.triggerRelease(this.current, time); // release old (long tail)…
+        this.active.triggerRelease(this.voiceNotes(this.current), time); // release old (long tail)…
         this.idx = (this.idx + 1) % this.prog.length;
         if (this.idx === 0) this.cycle++;
 
@@ -138,7 +171,7 @@ export class HarmonyEngine {
         if (this.idx === this.prog.length - 1 && this.cycle % 3 === 2) offsets = V7;
 
         this.current = this.notes(offsets);
-        this.synth.triggerAttack(this.current, time + 0.02); // …attack new — overlap → no gap
+        this.active.triggerAttack(this.voiceNotes(this.current), time + 0.02); // …attack new — overlap → no gap
         this.maybeJab(time, offsets); // sprinkle in-key bell accents
       } catch {
         /* keep the bed alive even if one chord change hiccups */
@@ -152,7 +185,7 @@ export class HarmonyEngine {
       T.clear(this.repeatId);
       this.repeatId = undefined;
     }
-    this.synth.releaseAll();
+    this.active.releaseAll();
     this.jab.releaseAll();
     this.filterLFO.stop();
     this.widthLFO.stop();
@@ -160,6 +193,7 @@ export class HarmonyEngine {
 
   dispose() {
     this.stop();
+    this.sampler?.dispose();
     for (const n of [this.synth, this.jab, this.jabDelay, this.filter, this.filterLFO, this.widthLFO, this.widener, this.chorus, this.gain]) {
       try {
         n.dispose();
