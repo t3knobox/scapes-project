@@ -50,12 +50,41 @@ class AudioEngine {
   async start(bpm = 72) {
     this.build();
     if (this.started) return;
+    // iOS Safari unlock: must happen synchronously inside the user gesture, BEFORE any
+    // await yields the microtask and burns the gesture token. We do two things:
+    //  1) Kick ctx.resume() (fire-and-forget) so the underlying AudioContext starts running.
+    //  2) Play a 1-sample silent buffer — the legacy iOS unlock trick that flips stubborn
+    //     Safari versions out of the muted-output state even after resume() resolves.
+    const rawCtx = Tone.getContext().rawContext as AudioContext;
+    if (rawCtx.state !== "running") void rawCtx.resume();
+    try {
+      const buf = rawCtx.createBuffer(1, 1, 22050);
+      const src = rawCtx.createBufferSource();
+      src.buffer = buf;
+      src.connect(rawCtx.destination);
+      src.start(0);
+    } catch {
+      /* unlock is best-effort; never block startup if the buffer trick fails */
+    }
     await Tone.start(); // resumes the playback-latency context configured in build()
     await this.reverb.ready; // impulse response ready before audio flows
     this.bpm = bpm;
     Tone.getTransport().bpm.value = bpm;
     Tone.getTransport().start();
     this.started = true;
+    // Mobile-debug breadcrumb: if audio is silent on a phone, this tells us whether
+    // the underlying context actually reached "running" inside the tap gesture.
+    console.log(`[engine] started, ctx.state=${rawCtx.state}`);
+  }
+
+  /** AudioContext state for diagnostics ("suspended" | "running" | "closed" | "unbuilt"). */
+  getContextState(): string {
+    if (!this.built) return "unbuilt";
+    try {
+      return (Tone.getContext().rawContext as AudioContext).state;
+    } catch {
+      return "unknown";
+    }
   }
 
   get isStarted() {
