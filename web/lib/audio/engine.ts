@@ -7,6 +7,7 @@ import * as Tone from "tone";
  */
 class AudioEngine {
   master!: Tone.Channel;
+  spaceReverb!: Tone.Reverb; // per-voice reverb SEND bus (each voice sets its own send amount)
   private reverb!: Tone.Reverb;
   private limiter!: Tone.Limiter;
   private meter?: Tone.Meter; // post-limiter tap for audio-reactive visuals
@@ -28,6 +29,9 @@ class AudioEngine {
     // Breathe the reverb wet (one cheap LFO) so the whole space slowly swells + contracts.
     this.reverbLFO = new Tone.LFO({ frequency: 0.04, min: 0.18, max: 0.36 }).start();
     this.reverbLFO.connect(this.reverb.wet);
+    // Per-voice reverb SEND bus: a bigger space each voice dials into by its own amount.
+    this.spaceReverb = new Tone.Reverb({ decay: 9, wet: 1 });
+    this.spaceReverb.connect(this.master);
     this.meter = new Tone.Meter({ smoothing: 0.85, normalRange: true });
     this.limiter.connect(this.meter); // dead-end fan-out tap (reads, doesn't pass on)
     this.built = true;

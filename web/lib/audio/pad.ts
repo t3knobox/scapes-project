@@ -1,6 +1,5 @@
 import * as Tone from "tone";
-import { engine } from "./engine";
-import { buildAutoFXChain } from "./fx";
+import { VoiceFX } from "./voiceFx";
 import { detectPitch, midiToNote, PITCH_CONFIDENCE_MIN } from "./pitch";
 import { SampledInstrument } from "./sampledInstrument";
 import { registerInstrument } from "./debug";
@@ -22,7 +21,7 @@ import type { Clip, PadState } from "./types";
  */
 export class PadVoice {
   private player: Tone.Player;
-  private fx: Tone.ToneAudioNode[];
+  private rack: VoiceFX; // per-voice effects rack (tone-shaping + pan + reverb send)
   private inst?: SampledInstrument; // set if this pad becomes an in-key sampled instrument
   private instNotes: number[] = []; // the in-key notes it plays off the piano roll
   state: PadState = "idle";
@@ -34,8 +33,8 @@ export class PadVoice {
       fadeIn: 0.12,
       fadeOut: 0.35,
     });
-    this.fx = buildAutoFXChain(clip.category, clip.id);
-    this.player.chain(...this.fx, engine.master);
+    this.rack = new VoiceFX(clip.category, clip.id);
+    this.player.connect(this.rack.input);
   }
 
   async load() {
@@ -62,8 +61,7 @@ export class PadVoice {
     const degrees = CATEGORY_DEGREES[this.clip.category] ?? [0];
     // place each scale tone in the octave nearest the sample → tiny shifts → no timbre warp
     this.instNotes = degrees.map((d) => nearestOctave(degreeToMidi(scale, d), res.midi));
-    const out = this.fx[0] ?? engine.master;
-    this.inst = new SampledInstrument(ab, res.midi, res.freq, out, {
+    this.inst = new SampledInstrument(ab, res.midi, res.freq, this.rack.input, {
       attack: this.clip.loop ? 1.2 : 0.4,
       release: 1.6,
       volume: -7,
@@ -100,6 +98,7 @@ export class PadVoice {
 
     const T = Tone.getTransport();
     const at = "+0.03"; // fire on click (tiny scheduler-safety lookahead), no quantize-to-bar wait
+    this.rack.randomize(); // shift reverb depth + pan so no two triggers sound the same
 
     // Tonal pad → play in-key notes off the piano roll instead of the raw, off-key clip.
     if (this.inst) {
@@ -158,7 +157,7 @@ export class PadVoice {
     try {
       this.inst?.dispose();
       this.player.dispose();
-      this.fx.forEach((n) => n.dispose());
+      this.rack.dispose();
     } catch {
       /* noop */
     }
