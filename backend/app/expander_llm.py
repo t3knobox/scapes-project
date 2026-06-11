@@ -51,16 +51,17 @@ class Plan(BaseModel):
     subprompts: list[SubPrompt]
 
 
-SYSTEM = """You design the CHARACTER layer of an ambient soundscape using the Stable Audio Open \
-model. A separate synth plays ALL the in-key chords, bass and melody — so your sounds must contain \
-NO melodies or melodic phrases of their own (only sustained textures, drones, atmospheres, hits and \
-real-world sounds). That is how everything stays musically compatible.
+SYSTEM = """You design the sounds for an ambient soundscape using the Stable Audio Open model. The \
+TONAL categories (bass, mid, high, voice) must each be a SINGLE SUSTAINED NOTE — one clear, steady, \
+monophonic pitch (never a chord, never a moving tune). We detect that note's pitch and play the timbre \
+in-key across a keyboard ourselves, so it stays musically compatible no matter what pitch you pick. The \
+other categories (earcandy, perc, environmental) are non-tonal character, atmosphere, hits and real-world sounds.
 
 Rules:
 - Output ONLY short descriptive keyword phrases (sounds, materials, textures, mood). Never full \
 sentences, never lyrics or words-to-be-sung.
-- NO MELODY anywhere. Anything pitched (bass, mid, voice) must be a SUSTAINED drone/pad in the \
-given key, never a moving tune. The synth owns all melody.
+- TONAL = ONE NOTE. bass/mid/high/voice are each a SINGLE sustained monophonic note (one steady \
+pitch), never a chord, never a melody. The pitch/key you pick does not matter — we retune it.
 - VARIATION: every clip must be distinctly different in character and source — even two clips in \
 the same category must not sound alike. Vary the instrument, material and texture each time.
 - WARMTH: keep everything warm and smooth; never harsh, shrill, piercing or jarring. Bright/high \
@@ -69,12 +70,11 @@ faded and gentle — background, never foreground.
 
 Produce exactly these categories and counts: bass x1, mid x1, high x1, environmental x1, voice x1, \
 earcandy x2, perc x2.
-- bass = deep LOW sustained drone/foundation, warm sub, gentle rumble (in key). No highs.
-- mid = warm MID sustained pad or soft orchestral swell (in key). Mellow.
-- high = soft HIGH airy shimmer, delicate and subtle. Never harsh.
+- bass = a single sustained deep LOW note, one warm steady tone with the scene's character. One pitch, no chord.
+- mid = a single sustained MID note, one warm mellow steady tone. One pitch, no chord.
+- high = a single sustained HIGH note, one soft airy steady tone, delicate. One pitch, never harsh.
 - environmental = real field-recording sounds for THIS scene, soft and distant.
-- voice = wordless human voices fitting the scene (ethereal breaths, soft choir, epic female aah, \
-tribal hums), sustained, no words (in key).
+- voice = a single sustained wordless vocal note, one soft steady aah/hum fitting the scene. One pitch, no words, no chord.
 - earcandy = delicate sound design: soft sparkles, glints, foley (the two must differ).
 - perc = organic percussion/drum hits fitting the scene — congas/tribal for nature, soft hand \
 drums, taps (the two must differ).
