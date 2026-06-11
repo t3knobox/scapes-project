@@ -3,6 +3,7 @@ import { engine } from "./engine";
 import { buildAutoFXChain } from "./fx";
 import { detectPitch, midiToNote, PITCH_CONFIDENCE_MIN } from "./pitch";
 import { SampledInstrument } from "./sampledInstrument";
+import { registerInstrument } from "./debug";
 import {
   getScale,
   degreeToMidi,
@@ -70,6 +71,14 @@ export class PadVoice {
     console.log(
       `[pad] "${this.clip.category}" -> in-key instrument @ ${midiToNote(res.midi)} (conf ${res.confidence.toFixed(2)}) plays [${this.instNotes.map(midiToNote).join(" ")}]`,
     );
+    registerInstrument({
+      label: `pad:${this.clip.category}`,
+      baseMidi: res.midi,
+      detectedFreq: res.freq,
+      conf: res.confidence,
+      buffer: ab,
+      targets: this.instNotes,
+    });
   }
 
   private set(s: PadState, cb?: (s: PadState) => void) {

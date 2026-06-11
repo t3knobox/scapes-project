@@ -207,4 +207,9 @@ export class HarmonyEngine {
   currentChord(): string[] {
     return this.current;
   }
+
+  /** Representative tonic-chord MIDI notes (for the pitch-verification debug panel). */
+  chordTargets(): number[] {
+    return [this.rootMidi - 12, ...this.prog[0].map((o) => this.rootMidi + o)];
+  }
 }

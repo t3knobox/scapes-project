@@ -7,6 +7,7 @@ import { TitleAscii } from "./TitleAscii";
 import { PromptBar } from "./PromptBar";
 import { PadGrid } from "./PadGrid";
 import { TransportControls } from "./TransportControls";
+import { DebugPanel } from "./DebugPanel";
 import { useStore } from "@/state/store";
 import { entranceHeader } from "@/lib/motion";
 
@@ -44,6 +45,7 @@ export function Studio() {
       <div className="z-10">
         <TransportControls />
       </div>
+      <DebugPanel />
     </main>
   );
 }

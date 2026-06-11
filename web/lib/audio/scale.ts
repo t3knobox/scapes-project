@@ -35,7 +35,7 @@ export const CATEGORY_DEGREES: Record<string, number[]> = {
   bass: [0, 4], // root + fifth
   mid: [0, 2, 4], // tonic triad
   high: [4, 7, 9], // airy upper scale tones
-  voice: [0, 7], // root + octave
+  voice: [0, 4], // root + fifth (distinct — [0,7] collapsed to a unison after octave-placement)
   earcandy: [0, 2, 4, 7], // arpeggiated sparkle
 };
 export const TONAL_CATEGORIES = new Set(Object.keys(CATEGORY_DEGREES));

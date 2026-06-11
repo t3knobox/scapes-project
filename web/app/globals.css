@@ -296,6 +296,59 @@ body {
   gap: 1.25rem;
 }
 
+/* ---- ?debug pitch-verification overlay (functional, not pretty) ---- */
+.debug-panel {
+  position: fixed;
+  right: 0;
+  bottom: 0;
+  width: min(48rem, 97vw);
+  max-height: 52vh;
+  overflow: auto;
+  z-index: 60;
+  background: rgba(0, 0, 0, 0.9);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 10px 0 0 0;
+  padding: 0.6rem 0.8rem;
+  font-family: ui-monospace, "SF Mono", Menlo, monospace;
+  font-size: 11px;
+  line-height: 1.45;
+  color: #cdd6e6;
+}
+.debug-head {
+  display: flex;
+  gap: 0.6rem;
+  align-items: center;
+  margin-bottom: 0.5rem;
+}
+.debug-head button {
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  color: #eaf0ff;
+  padding: 2px 8px;
+  border-radius: 6px;
+  cursor: pointer;
+  font: inherit;
+}
+.debug-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: 0.6rem;
+}
+.debug-table th,
+.debug-table td {
+  text-align: left;
+  padding: 2px 10px 2px 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  white-space: nowrap;
+}
+.debug-logs {
+  opacity: 0.72;
+}
+.debug-logs div {
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+
 /* inverted (light) button — stands out against the dark translucent input */
 .btn-invert {
   background: #ececf2;

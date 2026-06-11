@@ -5,6 +5,7 @@ import { AutoScheduler } from "./autoMode";
 import { useStore } from "@/state/store";
 import type { Clip, PadState } from "./types";
 import { detectPitch, midiToNote } from "./pitch";
+import { clearDebug, registerInstrument } from "./debug";
 
 /**
  * Orchestrates the live audio and bridges it to the UI store.
@@ -24,13 +25,13 @@ function padCb(v: PadVoice) {
 // EXPERIMENT (?sampler): pick the first clean single-pitch tonal clip (prefer low register, to
 // minimise resampling shift) and route the chord bed through a Tone.Sampler of its timbre —
 // proving "AI-generated timbre + our guaranteed-in-key notes".
+// Prefer a LOW-register clip (bass first) for the chord bed: the chord plays low notes, so a low
+// sample resamples with tiny shifts. A high clip forced down to a bass chord warps badly.
 const TONAL_PREFERENCE = ["bass", "mid", "voice", "high"];
-// Experiment bar: real single-note samples score ~0.85+, but today's evolving textures are
-// lower — accept the best tonal clip down to this so the concept is at least audible now.
-const EXPERIMENT_MIN_CONF = 0.5;
+const CHORD_MIN_CONF = 0.8; // single-note clips score ~0.9+, so require a clean read
 function trySampleChordVoice(h: HarmonyEngine, vs: PadVoice[]) {
   const ordered = TONAL_PREFERENCE.flatMap((cat) => vs.filter((v) => v.clip.category === cat));
-  let best: { ab: AudioBuffer; midi: number; freq: number; conf: number; cat: string } | null = null;
+  let chosen: { ab: AudioBuffer; midi: number; freq: number; conf: number; cat: string } | null = null;
   for (const v of ordered) {
     const ab = v.audioBuffer;
     if (!ab) continue;
@@ -38,12 +39,22 @@ function trySampleChordVoice(h: HarmonyEngine, vs: PadVoice[]) {
     console.log(
       `[sampler] "${v.clip.category}" -> ${res ? `${midiToNote(res.midi)} conf ${res.confidence.toFixed(2)}` : "no pitch"}`,
     );
-    if (res && (!best || res.confidence > best.conf))
-      best = { ab, midi: res.midi, freq: res.freq, conf: res.confidence, cat: v.clip.category };
+    // first confident clip in preference order wins (= lowest register available)
+    if (!chosen && res && res.confidence >= CHORD_MIN_CONF) {
+      chosen = { ab, midi: res.midi, freq: res.freq, conf: res.confidence, cat: v.clip.category };
+    }
   }
-  if (best && best.conf >= EXPERIMENT_MIN_CONF) {
-    h.useSample(best.ab, best.midi, best.freq);
-    console.log(`[sampler] ✓ chord voice = "${best.cat}" @ ${midiToNote(best.midi)} (conf ${best.conf.toFixed(2)})`);
+  if (chosen) {
+    h.useSample(chosen.ab, chosen.midi, chosen.freq);
+    registerInstrument({
+      label: "chord-bed",
+      baseMidi: chosen.midi,
+      detectedFreq: chosen.freq,
+      conf: chosen.conf,
+      buffer: chosen.ab,
+      targets: h.chordTargets(),
+    });
+    console.log(`[sampler] ✓ chord voice = "${chosen.cat}" @ ${midiToNote(chosen.midi)} (conf ${chosen.conf.toFixed(2)})`);
   } else {
     console.log("[sampler] no usable tonal clip → staying on synth");
   }
@@ -54,6 +65,7 @@ export const session = {
 
   async loadPack(clips: Clip[], keyName: string, bpm: number) {
     this.dispose();
+    clearDebug(); // fresh pitch-verification entries per pack
     engine.build();
     const store = useStore.getState();
     store.setLoading(true);
@@ -62,10 +74,10 @@ export const session = {
     voices = clips.map((c) => new PadVoice(c)); // synth is the bed; every clip is a pad
     await Promise.all(voices.map((v) => v.load()));
 
-    if (typeof window !== "undefined" && new URLSearchParams(window.location.search).has("sampler")) {
-      trySampleChordVoice(harmony, voices); // chord bed → sampled in-key
-      voices.forEach((v) => v.maybeBecomeInstrument(keyName)); // each tonal pad → in-key instrument
-    }
+    // In-key pipeline (DEFAULT): the chord bed + every clean tonal pad become cents-corrected
+    // sampled instruments playing in-key notes. Clips that fail the pitch gate stay raw texture.
+    trySampleChordVoice(harmony, voices);
+    voices.forEach((v) => v.maybeBecomeInstrument(keyName));
 
     auto = new AutoScheduler(voices, (v) => v.trigger(padCb(v)));
     store.setClips(clips, keyName, bpm);

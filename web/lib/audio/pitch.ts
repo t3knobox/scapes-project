@@ -32,11 +32,23 @@ export function correctedFreq(targetMidi: number, baseMidi: number, detectedFreq
  * `confidence` (0..1) is the normalized autocorrelation at the fundamental — gate on
  * PITCH_CONFIDENCE_MIN to use only clips that are genuinely a single note.
  */
+/** Median pitch over a few windows → robust on inharmonic/sparkly timbres (e.g. ear-candy) and
+ *  against the occasional octave-error window. */
 export function detectPitch(data: Float32Array, sampleRate: number): PitchResult | null {
+  if (data.length < 4096) return null;
+  const ests = [0.25, 0.45, 0.62]
+    .map((p) => detectAt(data, sampleRate, p))
+    .filter((e): e is PitchResult => e !== null);
+  if (!ests.length) return null;
+  ests.sort((a, b) => a.freq - b.freq);
+  return ests[Math.floor(ests.length / 2)]; // median by frequency
+}
+
+function detectAt(data: Float32Array, sampleRate: number, posFrac: number): PitchResult | null {
   const n = data.length;
-  if (n < 2048) return null;
-  const start = Math.floor(n * 0.3); // skip the attack, analyse the steady state
+  const start = Math.floor(n * posFrac); // skip the attack, analyse the steady state
   const size = Math.min(16384, n - start);
+  if (size < 2048) return null;
   const buf = data.subarray(start, start + size);
 
   let rms = 0;
