@@ -1,6 +1,16 @@
 import * as Tone from "tone";
 import { engine } from "./engine";
 import { buildAutoFXChain } from "./fx";
+import { detectPitch, midiToNote, PITCH_CONFIDENCE_MIN } from "./pitch";
+import { SampledInstrument } from "./sampledInstrument";
+import {
+  getScale,
+  degreeToMidi,
+  nearestOctave,
+  CATEGORY_DEGREES,
+  TONAL_CATEGORIES,
+  ARP_CATEGORIES,
+} from "./scale";
 import type { Clip, PadState } from "./types";
 
 /**
@@ -12,6 +22,8 @@ import type { Clip, PadState } from "./types";
 export class PadVoice {
   private player: Tone.Player;
   private fx: Tone.ToneAudioNode[];
+  private inst?: SampledInstrument; // set if this pad becomes an in-key sampled instrument
+  private instNotes: number[] = []; // the in-key notes it plays off the piano roll
   state: PadState = "idle";
 
   constructor(public clip: Clip) {
@@ -34,6 +46,32 @@ export class PadVoice {
     return this.player.loaded ? this.player.buffer.get() : undefined;
   }
 
+  /**
+   * Turn a clean, single-pitch TONAL clip into an in-key sampled instrument (the off-key fix):
+   * detect its pitch and lay it across this category's scale tones. Noisy/chordal or non-tonal
+   * clips fail the confidence gate and stay raw texture (no pitch = no clash).
+   */
+  maybeBecomeInstrument(key: string) {
+    if (!TONAL_CATEGORIES.has(this.clip.category)) return;
+    const ab = this.audioBuffer;
+    if (!ab) return;
+    const res = detectPitch(ab.getChannelData(0), ab.sampleRate);
+    if (!res || res.confidence < PITCH_CONFIDENCE_MIN) return; // stays raw texture
+    const scale = getScale(key);
+    const degrees = CATEGORY_DEGREES[this.clip.category] ?? [0];
+    // place each scale tone in the octave nearest the sample → tiny shifts → no timbre warp
+    this.instNotes = degrees.map((d) => nearestOctave(degreeToMidi(scale, d), res.midi));
+    const out = this.fx[0] ?? engine.master;
+    this.inst = new SampledInstrument(ab, res.midi, res.freq, out, {
+      attack: this.clip.loop ? 1.2 : 0.4,
+      release: 1.6,
+      volume: -7,
+    });
+    console.log(
+      `[pad] "${this.clip.category}" -> in-key instrument @ ${midiToNote(res.midi)} (conf ${res.confidence.toFixed(2)}) plays [${this.instNotes.map(midiToNote).join(" ")}]`,
+    );
+  }
+
   private set(s: PadState, cb?: (s: PadState) => void) {
     this.state = s;
     cb?.(s);
@@ -52,12 +90,34 @@ export class PadVoice {
     }
 
     const T = Tone.getTransport();
-    // Fire on click — a tiny lookahead for scheduler safety, no quantize-to-bar wait. Responsive
-    // feedback beats grid-lock for a tap-to-play instrument; the harmony bed is the timed backbone.
-    const at = "+0.03";
+    const at = "+0.03"; // fire on click (tiny scheduler-safety lookahead), no quantize-to-bar wait
 
-    // Tasteful per-trigger variation (no buffer mutation, so cheap + safe): pull a different
-    // slice of sustained textures, and wobble the pitch of non-tonal hits so none are identical.
+    // Tonal pad → play in-key notes off the piano roll instead of the raw, off-key clip.
+    if (this.inst) {
+      try {
+        this.set("queued", cb);
+        if (ARP_CATEGORIES.has(this.clip.category)) {
+          this.inst.arp(this.instNotes, Tone.now() + 0.03);
+          T.scheduleOnce(() => this.set("playing", cb), at);
+          T.scheduleOnce(() => this.set("idle", cb), `+${this.instNotes.length * 0.16 + 0.6}`);
+        } else {
+          this.inst.attack(this.instNotes, at);
+          T.scheduleOnce(() => this.set("playing", cb), at);
+          if (!this.clip.loop) {
+            T.scheduleOnce(() => {
+              this.inst?.release(this.instNotes);
+              this.set("idle", cb);
+            }, `+${this.clip.durationSec + 1}`);
+          }
+        }
+      } catch {
+        this.set("idle", cb);
+      }
+      return;
+    }
+
+    // Raw-clip path: tasteful per-trigger variation (no buffer mutation, cheap + safe) — pull a
+    // different slice of sustained textures, wobble the pitch of non-tonal hits so none repeat.
     const nonTonal = this.clip.category === "perc" || this.clip.category === "earcandy";
     this.player.playbackRate = nonTonal ? 1 + (Math.random() - 0.5) * 0.05 : 1;
     const offset = this.clip.loop ? Math.random() * Math.min(2.5, this.clip.durationSec * 0.4) : 0;
@@ -77,7 +137,8 @@ export class PadVoice {
 
   stop() {
     try {
-      this.player.stop("+0.05");
+      if (this.inst) this.inst.releaseAll("+0.05");
+      else this.player.stop("+0.05");
     } catch {
       /* noop */
     }
@@ -86,6 +147,7 @@ export class PadVoice {
 
   dispose() {
     try {
+      this.inst?.dispose();
       this.player.dispose();
       this.fx.forEach((n) => n.dispose());
     } catch {

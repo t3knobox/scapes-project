@@ -63,7 +63,8 @@ export const session = {
     await Promise.all(voices.map((v) => v.load()));
 
     if (typeof window !== "undefined" && new URLSearchParams(window.location.search).has("sampler")) {
-      trySampleChordVoice(harmony, voices);
+      trySampleChordVoice(harmony, voices); // chord bed → sampled in-key
+      voices.forEach((v) => v.maybeBecomeInstrument(keyName)); // each tonal pad → in-key instrument
     }
 
     auto = new AutoScheduler(voices, (v) => v.trigger(padCb(v)));

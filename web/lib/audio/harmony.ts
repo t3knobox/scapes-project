@@ -2,7 +2,7 @@ import * as Tone from "tone";
 import { engine } from "./engine";
 import { midiToNote } from "./pitch";
 
-type Mode = "ionian" | "aeolian";
+export type Mode = "ionian" | "aeolian";
 
 // Chords as semitone offsets from the key root. Lush 7th/9th voicings.
 const PROGRESSIONS: Record<Mode, number[][]> = {
@@ -28,7 +28,7 @@ const NOTE_TO_SEMI: Record<string, number> = {
   C: 0, "C#": 1, D: 2, "D#": 3, E: 4, F: 5, "F#": 6, G: 7, "G#": 8, A: 9, "A#": 10, B: 11,
 };
 
-function parseKey(key: string): { rootMidi: number; mode: Mode } {
+export function parseKey(key: string): { rootMidi: number; mode: Mode } {
   const m = key.trim().match(/^([A-G]#?)\s*(major|minor|aeolian|ionian|dorian)?/i);
   const letter = (m?.[1] ?? "D").toUpperCase();
   const quality = (m?.[2] ?? "major").toLowerCase();

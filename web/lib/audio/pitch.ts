@@ -16,6 +16,18 @@ export function midiToNote(midi: number): string {
 }
 
 /**
+ * The frequency to feed a Tone.Sampler (whose buffer is mapped at `baseMidi` but whose TRUE
+ * pitch is `detectedFreq`) so the output lands exactly on `targetMidi`'s concert-pitch (12-TET).
+ * This is the cents-correction: SAO isn't at A=440, so without it everything is detuned.
+ */
+export function correctedFreq(targetMidi: number, baseMidi: number, detectedFreq: number): number {
+  const trueBaseFreq = 440 * Math.pow(2, (baseMidi - 69) / 12);
+  const tuneRatio = trueBaseFreq / detectedFreq; // sample's off-concert error
+  const targetFreq = 440 * Math.pow(2, (targetMidi - 69) / 12);
+  return targetFreq * tuneRatio;
+}
+
+/**
  * Estimate the dominant pitch of a mono PCM buffer. Returns null on silence.
  * `confidence` (0..1) is the normalized autocorrelation at the fundamental — gate on
  * PITCH_CONFIDENCE_MIN to use only clips that are genuinely a single note.
